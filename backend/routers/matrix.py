@@ -20,8 +20,9 @@ class HeaderUpdate(BaseModel):
 
 class DropPayload(BaseModel):
     source_ids_id: int
-    drop_type: str  # specification | applicability | requirement
-    spec_name: str
+    drop_type: str  # specification | applicability | requirement | ids | multi_specification
+    spec_name: str = ""
+    spec_names: List[str] = []   # for multi_specification and ids drops
     applicability_index: Optional[int] = None
     requirement_index: Optional[int] = None
     apply_to_all_phases: bool = False
@@ -105,6 +106,26 @@ def update_header(project_id: int, did: int, pid: int, body: HeaderUpdate, db: S
     return {"ok": True}
 
 
+def _build_entries_for_spec(spec: dict, source_ids_id: int, group_key: str, group_type: str, order_offset: int = 0) -> list:
+    """Build CellEntry objects for all requirements in a spec."""
+    applicability = spec.get("applicability", {})
+    applicability_list = [applicability] if applicability else []
+    entries = []
+    for req_idx, req in enumerate(spec.get("requirements", [])):
+        entries.append(CellEntry(
+            source_ids_id=source_ids_id,
+            entry_type="requirement",
+            spec_name=spec["name"],
+            applicability_json=json.dumps(applicability_list),
+            requirement_json=json.dumps(req),
+            status="required" if req.get("baseStatus") == "required" else "optional",
+            group_key=group_key,
+            group_type=group_type,
+            order_index=order_offset + req_idx,
+        ))
+    return entries
+
+
 @router.post("/matrix/{did}/{pid}/drop")
 def drop_onto_cell(project_id: int, did: int, pid: int, body: DropPayload, db: Session = Depends(get_db)):
     source = db.query(IDSSource).filter(IDSSource.id == body.source_ids_id, IDSSource.project_id == project_id).first()
@@ -112,73 +133,86 @@ def drop_onto_cell(project_id: int, did: int, pid: int, body: DropPayload, db: S
         raise HTTPException(404, "Source IDS not found")
 
     parsed = json.loads(source.parsed_json)
-    specs = parsed.get("specifications", [])
-    spec = next((s for s in specs if s["name"] == body.spec_name), None)
-    if not spec:
-        raise HTTPException(404, f"Specification '{body.spec_name}' not found in source")
+    all_specs = parsed.get("specifications", [])
 
-    group_key = str(uuid.uuid4())
-    entries_to_add = []
+    # Build the list of (spec, group_key, group_type) tuples to add
+    specs_to_add: list[tuple] = []
 
-    applicability = spec.get("applicability", {})
-    applicability_list = [applicability] if applicability else []
+    if body.drop_type in ("ids", "multi_specification"):
+        # Determine which specs to include
+        if body.drop_type == "ids":
+            target_specs = all_specs
+        else:
+            names_set = set(body.spec_names)
+            target_specs = [s for s in all_specs if s["name"] in names_set]
+        if not target_specs:
+            raise HTTPException(404, "No matching specifications found in source")
+        for s in target_specs:
+            specs_to_add.append((s, str(uuid.uuid4()), "specification"))
 
-    if body.drop_type == "specification":
-        for req_idx, req in enumerate(spec.get("requirements", [])):
-            entries_to_add.append(CellEntry(
+    elif body.drop_type == "specification":
+        spec = next((s for s in all_specs if s["name"] == body.spec_name), None)
+        if not spec:
+            raise HTTPException(404, f"Specification '{body.spec_name}' not found in source")
+        specs_to_add.append((spec, str(uuid.uuid4()), "specification"))
+
+    elif body.drop_type == "requirement":
+        spec = next((s for s in all_specs if s["name"] == body.spec_name), None)
+        if not spec:
+            raise HTTPException(404, f"Specification '{body.spec_name}' not found in source")
+        reqs = spec.get("requirements", [])
+        if body.requirement_index is None or body.requirement_index >= len(reqs):
+            raise HTTPException(400, "Requirement index out of range")
+        req = reqs[body.requirement_index]
+        applicability = spec.get("applicability", {})
+        applicability_list = [applicability] if applicability else []
+        gkey = str(uuid.uuid4())
+
+        # Determine target cells
+        target_phase_ids = [pid]
+        if body.apply_to_all_phases:
+            target_phase_ids = [p.id for p in db.query(Phase).filter(Phase.project_id == project_id).all()]
+
+        for target_pid in target_phase_ids:
+            cell = _get_or_create_cell(project_id, did, target_pid, db)
+            max_order = max((e.order_index for e in cell.entries), default=-1) + 1
+            db.add(CellEntry(
+                cell_id=cell.id,
                 source_ids_id=body.source_ids_id,
                 entry_type="requirement",
                 spec_name=spec["name"],
                 applicability_json=json.dumps(applicability_list),
                 requirement_json=json.dumps(req),
                 status="required" if req.get("baseStatus") == "required" else "optional",
-                group_key=group_key,
-                group_type="specification",
-                order_index=req_idx,
+                group_key=gkey if target_pid == pid else str(uuid.uuid4()),
+                group_type="standalone",
+                order_index=max_order,
             ))
-    elif body.drop_type == "requirement" and body.requirement_index is not None:
-        reqs = spec.get("requirements", [])
-        if body.requirement_index >= len(reqs):
-            raise HTTPException(400, "Requirement index out of range")
-        req = reqs[body.requirement_index]
-        entries_to_add.append(CellEntry(
-            source_ids_id=body.source_ids_id,
-            entry_type="requirement",
-            spec_name=spec["name"],
-            applicability_json=json.dumps(applicability_list),
-            requirement_json=json.dumps(req),
-            status="required" if req.get("baseStatus") == "required" else "optional",
-            group_key=group_key,
-            group_type="standalone",
-            order_index=0,
-        ))
+        db.commit()
+        return {"ok": True, "entries_added": 1, "phases_updated": len(target_phase_ids)}
 
-    # Determine target cells
+    # For specs_to_add: add all entries to target cells
+    total_entries = 0
     target_phase_ids = [pid]
-    if body.apply_to_all_phases and body.drop_type in ("specification", "applicability"):
-        phases = db.query(Phase).filter(Phase.project_id == project_id).all()
-        target_phase_ids = [p.id for p in phases]
+    if body.apply_to_all_phases:
+        target_phase_ids = [p.id for p in db.query(Phase).filter(Phase.project_id == project_id).all()]
 
     for target_pid in target_phase_ids:
         cell = _get_or_create_cell(project_id, did, target_pid, db)
         max_order = max((e.order_index for e in cell.entries), default=-1) + 1
-        for i, entry_template in enumerate(entries_to_add):
-            entry = CellEntry(
-                cell_id=cell.id,
-                source_ids_id=entry_template.source_ids_id,
-                entry_type=entry_template.entry_type,
-                spec_name=entry_template.spec_name,
-                applicability_json=entry_template.applicability_json,
-                requirement_json=entry_template.requirement_json,
-                status=entry_template.status,
-                group_key=group_key if target_pid == pid else str(uuid.uuid4()),
-                group_type=entry_template.group_type,
-                order_index=max_order + i,
-            )
-            db.add(entry)
+        offset = max_order
+        for spec, gkey, gtype in specs_to_add:
+            use_gkey = gkey if target_pid == pid else str(uuid.uuid4())
+            entries = _build_entries_for_spec(spec, body.source_ids_id, use_gkey, gtype, offset)
+            for entry in entries:
+                entry.cell_id = cell.id
+                db.add(entry)
+            offset += len(entries)
+            if target_pid == pid:
+                total_entries += len(entries)
 
     db.commit()
-    return {"ok": True, "group_key": group_key, "entries_added": len(entries_to_add), "phases_updated": len(target_phase_ids)}
+    return {"ok": True, "entries_added": total_entries, "phases_updated": len(target_phase_ids)}
 
 
 @router.put("/matrix/entries/{eid}/status")

@@ -38,8 +38,9 @@ export interface CellData {
 
 export interface DropPayload {
   sourceIdsId: number;
-  dropType: 'specification' | 'applicability' | 'requirement';
+  dropType: 'specification' | 'applicability' | 'requirement' | 'ids' | 'multi_specification';
   specName: string;
+  specNames?: string[];          // for multi_specification
   applicabilityIndex: number | null;
   requirementIndex: number | null;
 }

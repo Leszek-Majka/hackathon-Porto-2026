@@ -35,7 +35,7 @@ export default function MatrixCell({
     setDragOver(false);
     try {
       const raw = JSON.parse(e.dataTransfer.getData('application/json')) as DropPayload;
-      if (raw.dropType === 'specification') {
+      if (raw.dropType === 'specification' || raw.dropType === 'ids' || raw.dropType === 'multi_specification') {
         // Ask whether to apply to all phases
         setPendingPayload({ raw });
       } else {
@@ -51,6 +51,7 @@ export default function MatrixCell({
       source_ids_id: raw.sourceIdsId,
       drop_type: raw.dropType,
       spec_name: raw.specName,
+      spec_names: raw.specNames ?? [],
       applicability_index: raw.applicabilityIndex,
       requirement_index: raw.requirementIndex,
       apply_to_all_phases: applyToAll,
