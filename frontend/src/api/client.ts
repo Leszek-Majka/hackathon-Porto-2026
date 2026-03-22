@@ -155,8 +155,8 @@ export const api = {
     },
   },
 
-  compare: (projectId: number, sourceA: number, sourceB: number) =>
-    request<any>(`/api/projects/${projectId}/compare?source_a=${sourceA}&source_b=${sourceB}`),
+  compareCells: (projectId: number, discA: number, phaseA: number, discB: number, phaseB: number) =>
+    request<any>(`/api/projects/${projectId}/compare-cells?disc_a=${discA}&phase_a=${phaseA}&disc_b=${discB}&phase_b=${phaseB}`),
 
   translations: {
     list: (projectId: number) => request<Translation[]>(`/api/projects/${projectId}/translations`),

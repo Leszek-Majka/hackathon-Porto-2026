@@ -83,7 +83,8 @@ export default function ProjectDetail() {
           {tab === 'compare' && (
             <CompareTab
               projectId={projectId}
-              sources={sources}
+              disciplines={disciplines}
+              phases={phases}
             />
           )}
 
