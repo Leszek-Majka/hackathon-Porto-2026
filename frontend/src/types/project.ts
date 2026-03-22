@@ -43,25 +43,3 @@ export interface MatrixData {
   matrix: Record<string, Record<string, Record<string, MatrixStatus>>>;
   entries: MatrixEntry[];
 }
-
-export interface AutoFillResponse {
-  dry_run: boolean;
-  matched_specs: number;
-  matched_requirements: number;
-  updated_cells: number;
-  preview: AutoFillPreviewSpec[];
-  error: string | null;
-}
-
-export interface AutoFillPreviewSpec {
-  spec_name: string;
-  surviving_requirements: AutoFillPreviewReq[];
-}
-
-export interface AutoFillPreviewReq {
-  type: string;
-  name?: string;
-  baseName?: string;
-  propertySet?: string;
-  value?: string;
-}

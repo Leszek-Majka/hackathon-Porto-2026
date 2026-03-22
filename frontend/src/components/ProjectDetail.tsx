@@ -23,7 +23,7 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const projectId = Number(id);
   const { project, ids, loading, error, refresh } = useProject(projectId);
-  const { matrixData, saving, updateCell, refreshMatrix } = useMatrix(projectId);
+  const { matrixData, saving, updateCell } = useMatrix(projectId);
   const { runs, activeRunId, loading: validating, startValidation, deleteRun } = useValidation(projectId);
 
   const [tab, setTab] = useState<Tab>('matrix');
@@ -170,13 +170,11 @@ export default function ProjectDetail() {
                   </button>
                 </div>
                 <SpecMatrix
-                  projectId={projectId}
                   specs={specs}
                   phases={project.phases}
                   matrixData={matrixData}
                   saving={saving}
                   onCellChange={updateCell}
-                  onRefresh={refreshMatrix}
                 />
               </div>
             )}
