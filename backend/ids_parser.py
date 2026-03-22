@@ -182,7 +182,7 @@ def parse_ids(xml_content: str) -> Dict[str, Any]:
     info_el = root.find(_ns("info"))
     info: Dict[str, Any] = {}
     if info_el is not None:
-        for tag in ["title", "copyright", "version", "description", "author", "date", "purpose"]:
+        for tag in ["title", "copyright", "version", "description", "author", "date", "purpose", "milestone"]:
             el = info_el.find(_ns(tag))
             info[tag] = el.text if el is not None else None
 

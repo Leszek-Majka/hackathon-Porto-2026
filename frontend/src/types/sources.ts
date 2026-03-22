@@ -6,6 +6,10 @@ export interface IDSSource {
   author: string;
   date: string;
   version: string;
+  description: string;
+  copyright: string;
+  purpose: string;
+  milestone: string;
   spec_count: number;
   uploaded_at: string;
   parsed?: IDSParsed;

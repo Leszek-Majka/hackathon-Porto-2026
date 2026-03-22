@@ -16,6 +16,8 @@ class HeaderUpdate(BaseModel):
     version: str = ""
     description: str = ""
     copyright: str = ""
+    purpose: str = ""
+    milestone: str = ""
 
 
 class DropPayload(BaseModel):

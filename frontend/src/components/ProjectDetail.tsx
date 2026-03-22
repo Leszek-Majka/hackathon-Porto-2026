@@ -47,24 +47,11 @@ export default function ProjectDetail() {
   return (
     <DragProvider>
       <div className="flex flex-col h-full">
-        {/* Back link */}
-        <div className="px-8 pt-4">
-          <Link to="/" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-            ← Projects
-          </Link>
-          <h1 className="font-display text-xl font-semibold text-gray-900 dark:text-white mt-1">
-            {project.name}
-          </h1>
-          {project.description && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{project.description}</p>
-          )}
-        </div>
-
-        {/* Navigation */}
         <AppNav
           activeTab={tab}
           onTabChange={setTab}
           projectName={project.name}
+          projectDescription={project.description}
         />
 
         {/* Content */}

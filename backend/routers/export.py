@@ -32,6 +32,8 @@ def _build_ids_xml(header: dict, entries: list) -> str:
     version = header.get("version", "")
     description = header.get("description", "")
     copyright_text = header.get("copyright", "")
+    purpose = header.get("purpose", "")
+    milestone = header.get("milestone", "")
 
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -49,6 +51,10 @@ def _build_ids_xml(header: dict, entries: list) -> str:
         lines.append(f'    <ids:author>{author}</ids:author>')
     if ids_date:
         lines.append(f'    <ids:date>{ids_date}</ids:date>')
+    if purpose:
+        lines.append(f'    <ids:purpose>{purpose}</ids:purpose>')
+    if milestone:
+        lines.append(f'    <ids:milestone>{milestone}</ids:milestone>')
     lines.append('  </ids:info>')
     lines.append('  <ids:specifications>')
 

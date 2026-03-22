@@ -26,6 +26,8 @@ export interface CellHeader {
   version: string;
   description: string;
   copyright: string;
+  purpose: string;
+  milestone: string;
 }
 
 export interface CellData {

@@ -25,6 +25,7 @@ class SourceResponse(BaseModel):
 
 def _source_to_response(s: IDSSource) -> dict:
     parsed = json.loads(s.parsed_json)
+    info = parsed.get("info", {})
     return {
         "id": s.id,
         "project_id": s.project_id,
@@ -33,6 +34,10 @@ def _source_to_response(s: IDSSource) -> dict:
         "author": s.author,
         "date": s.date,
         "version": s.version,
+        "description": info.get("description") or "",
+        "copyright": info.get("copyright") or "",
+        "purpose": info.get("purpose") or "",
+        "milestone": info.get("milestone") or "",
         "spec_count": len(parsed.get("specifications", [])),
         "uploaded_at": s.uploaded_at.isoformat() if s.uploaded_at else "",
     }

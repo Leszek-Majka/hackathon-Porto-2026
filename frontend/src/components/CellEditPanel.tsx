@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import type { CellData, CellEntry } from '../types/matrix';
 import type { IDSSource } from '../types/sources';
@@ -22,14 +22,22 @@ export default function CellEditPanel({
 }: Props) {
   const [cellData, setCellData] = useState<CellData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  async function loadCell() {
-    setLoading(true);
+  async function loadCell(silent = false) {
+    const savedScroll = scrollRef.current?.scrollTop ?? 0;
+    if (!silent) setLoading(true);
     try {
       const data = await api.matrix.getCell(projectId, disciplineId, phaseId);
       setCellData(data);
+      if (silent) {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) scrollRef.current.scrollTop = savedScroll;
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -44,19 +52,19 @@ export default function CellEditPanel({
 
   async function handleStatusChange(eid: number, status: string) {
     await api.matrix.updateStatus(projectId, eid, status);
-    await loadCell();
+    await loadCell(true);
     onChanged();
   }
 
   async function handleDeleteEntry(eid: number) {
     await api.matrix.deleteEntry(projectId, eid);
-    await loadCell();
+    await loadCell(true);
     onChanged();
   }
 
   async function handleDeleteGroup(gkey: string) {
     await api.matrix.deleteGroup(projectId, gkey);
-    await loadCell();
+    await loadCell(true);
     onChanged();
   }
 
@@ -104,24 +112,44 @@ export default function CellEditPanel({
       </div>
 
       {/* Panel content */}
-      <div className="max-h-96 overflow-y-auto">
+      <div ref={scrollRef} className="max-h-96 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4 p-4">
-            {/* Header editor */}
-            <div>
-              <CellHeaderEditor
-                header={cellData?.header ?? { title: '', author: '', date: '', version: '', description: '', copyright: '' }}
-                sources={sources}
-                onSave={handleHeaderSave}
-              />
-            </div>
+          <div className="flex gap-4 p-4 items-start">
 
-            {/* Entry groups */}
-            <div className="col-span-2 space-y-3">
+            {/* Header column — expanded or collapsed strip */}
+            {headerCollapsed ? (
+              <div className="flex-shrink-0 flex flex-col items-center">
+                <button
+                  onClick={() => setHeaderCollapsed(false)}
+                  title="Expand IDS Header"
+                  className="flex flex-col items-center gap-1.5 px-1.5 py-2 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-indigo-500 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-xs font-semibold tracking-wide" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>
+                    IDS Header
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="w-1/3 flex-shrink-0">
+                <CellHeaderEditor
+                  header={cellData?.header ?? { title: '', author: '', date: '', version: '', description: '', copyright: '', purpose: '', milestone: '' }}
+                  sources={sources}
+                  onSave={handleHeaderSave}
+                  collapsed={false}
+                  onToggleCollapse={() => setHeaderCollapsed(true)}
+                />
+              </div>
+            )}
+
+            {/* Entry groups — expands to full width when header is collapsed */}
+            <div className="flex-1 min-w-0 space-y-3">
               {groups.length === 0 ? (
                 <div className="flex items-center justify-center h-32 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
                   <p className="text-sm text-gray-400 dark:text-gray-500 text-center px-4">

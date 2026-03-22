@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMatrix } from '../hooks/useMatrix';
 import { useSources } from '../hooks/useSources';
 import type { Discipline } from '../types/setup';
@@ -19,6 +19,10 @@ interface Props {
   phases: Phase[];
 }
 
+const BROWSER_MIN = 200;
+const BROWSER_MAX = 600;
+const BROWSER_DEFAULT = 288;
+
 export default function MatrixTab({ projectId, disciplines, phases }: Props) {
   const { summary, refreshSummary, drop } = useMatrix(projectId);
   const { sources } = useSources(projectId);
@@ -26,6 +30,11 @@ export default function MatrixTab({ projectId, disciplines, phases }: Props) {
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [visiblePhaseIds, setVisiblePhaseIds] = useState<Set<number>>(new Set(phases.map(p => p.id)));
   const [visibleDisciplineIds, setVisibleDisciplineIds] = useState<Set<number>>(new Set(disciplines.map(d => d.id)));
+  const [browserWidth, setBrowserWidth] = useState(BROWSER_DEFAULT);
+
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(BROWSER_DEFAULT);
 
   // Keep filter sets in sync as phases/disciplines change
   useEffect(() => {
@@ -36,6 +45,36 @@ export default function MatrixTab({ projectId, disciplines, phases }: Props) {
     setVisibleDisciplineIds(new Set(disciplines.map(d => d.id)));
   }, [disciplines.length]);
 
+  // ── Resize drag handlers ──────────────────────────────────────────────────
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = browserWidth;
+
+    function onMove(ev: MouseEvent) {
+      if (!isDragging.current) return;
+      // Handle is on the left edge of the browser — drag left = wider, drag right = narrower
+      const delta = dragStartX.current - ev.clientX;
+      const newWidth = Math.max(BROWSER_MIN, Math.min(BROWSER_MAX, dragStartWidth.current + delta));
+      setBrowserWidth(newWidth);
+    }
+
+    function onUp() {
+      isDragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [browserWidth]);
+
+  // ── Filters ───────────────────────────────────────────────────────────────
   function togglePhase(id: number) {
     setVisiblePhaseIds(prev => {
       const next = new Set(prev);
@@ -59,6 +98,7 @@ export default function MatrixTab({ projectId, disciplines, phases }: Props) {
     setVisibleDisciplineIds(new Set(disciplines.map(d => d.id)));
   }
 
+  // ── Cell interaction ──────────────────────────────────────────────────────
   function handleCellClick(disciplineId: number, phaseId: number) {
     if (selectedCell?.disciplineId === disciplineId && selectedCell?.phaseId === phaseId) {
       setSelectedCell(null);
@@ -89,8 +129,8 @@ export default function MatrixTab({ projectId, disciplines, phases }: Props) {
         </button>
       </div>
 
-      <div className="flex gap-4 items-start" style={{ paddingBottom: selectedCell ? '420px' : 0 }}>
-        {/* Left: grid */}
+      <div className="flex items-start" style={{ paddingBottom: selectedCell ? '420px' : 0 }}>
+        {/* Left: matrix grid */}
         <div className="flex-1 min-w-0 space-y-2">
           <MatrixFilters
             phases={phases}
@@ -114,8 +154,20 @@ export default function MatrixTab({ projectId, disciplines, phases }: Props) {
           />
         </div>
 
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className="flex-shrink-0 w-2 mx-1 self-stretch flex items-center justify-center cursor-col-resize group"
+          title="Drag to resize"
+        >
+          <div className="w-0.5 h-full bg-gray-200 dark:bg-gray-700 group-hover:bg-indigo-400 dark:group-hover:bg-indigo-500 transition-colors rounded-full" />
+        </div>
+
         {/* Right: IDS browser */}
-        <div className="w-72 flex-shrink-0 sticky top-0" style={{ height: 'calc(100vh - 200px)' }}>
+        <div
+          className="flex-shrink-0 sticky top-0"
+          style={{ width: browserWidth, height: 'calc(100vh - 200px)' }}
+        >
           <IDSBrowserPanel projectId={projectId} sources={sources} />
         </div>
       </div>
