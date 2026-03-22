@@ -11,6 +11,9 @@ router = APIRouter(prefix="/api/projects", tags=["phases"])
 PHASE_COLORS = [
     "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
     "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16",
+    "#F97316", "#6366F1", "#14B8A6", "#A855F7",
+    "#22C55E", "#EAB308", "#0EA5E9", "#F43F5E",
+    "#64748B", "#D97706", "#7C3AED", "#0891B2",
 ]
 
 
@@ -40,9 +43,13 @@ def add_phase(project_id: int, data: PhaseCreate, db: Session = Depends(get_db))
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Auto-assign color based on count
+    # Auto-assign color — pick first unused palette color, fall back to cycling
+    existing_colors = {p.color for p in project.phases}
     phase_count = len(project.phases)
-    color = data.color or PHASE_COLORS[phase_count % len(PHASE_COLORS)]
+    color = data.color or next(
+        (c for c in PHASE_COLORS if c not in existing_colors),
+        PHASE_COLORS[phase_count % len(PHASE_COLORS)],
+    )
     order_index = data.order_index if data.order_index is not None else phase_count
 
     phase = Phase(

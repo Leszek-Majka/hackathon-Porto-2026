@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { api } from '../api/client';
 import type { Phase } from '../types/project';
 
-const PRESET_COLORS = [
+const PALETTE = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
+  '#F97316', '#6366F1', '#14B8A6', '#A855F7',
+  '#22C55E', '#EAB308', '#0EA5E9', '#F43F5E',
+  '#64748B', '#D97706', '#7C3AED', '#0891B2',
 ];
 
 interface Props {
@@ -25,6 +28,7 @@ export default function PhaseManager({ projectId, phases, onChanged }: Props) {
     if (!newName.trim()) return;
     setAdding(true);
     try {
+      // No color — backend auto-assigns the next unused palette color
       await api.phases.add(projectId, newName.trim(), undefined, phases.length);
       setNewName('');
       onChanged();
@@ -77,12 +81,9 @@ export default function PhaseManager({ projectId, phases, onChanged }: Props) {
               >
                 {editingId === phase.id ? (
                   <>
-                    <input
-                      type="color"
-                      value={editColor}
-                      onChange={e => setEditColor(e.target.value)}
-                      className="w-7 h-7 rounded cursor-pointer border-0"
-                    />
+                    {/* Color dot preview */}
+                    <div className="w-4 h-4 rounded-full flex-shrink-0 border border-gray-200" style={{ backgroundColor: editColor }} />
+                    {/* Name */}
                     <input
                       type="text"
                       value={editName}
@@ -90,12 +91,14 @@ export default function PhaseManager({ projectId, phases, onChanged }: Props) {
                       className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       autoFocus
                     />
-                    <div className="flex gap-1">
-                      {PRESET_COLORS.map(c => (
+                    {/* Compact palette swatches */}
+                    <div className="flex flex-wrap gap-1 max-w-[120px]">
+                      {PALETTE.map(c => (
                         <button
                           key={c}
+                          type="button"
                           onClick={() => setEditColor(c)}
-                          className="w-4 h-4 rounded-full border-2 transition-all"
+                          className="w-4 h-4 rounded-full border-2 transition-all flex-shrink-0"
                           style={{
                             backgroundColor: c,
                             borderColor: editColor === c ? '#1d4ed8' : 'transparent',
@@ -150,6 +153,7 @@ export default function PhaseManager({ projectId, phases, onChanged }: Props) {
         </div>
       )}
 
+      {/* Add form — no color picker */}
       <form onSubmit={handleAdd} className="flex gap-2 mt-2">
         <input
           type="text"

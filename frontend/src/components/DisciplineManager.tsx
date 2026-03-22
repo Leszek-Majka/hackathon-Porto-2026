@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { api } from '../api/client';
 import type { Discipline } from '../types/setup';
 
-const PHASE_COLORS = [
-  '#6366F1', '#3B82F6', '#10B981', '#F59E0B',
-  '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4',
+const PALETTE = [
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+  '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16',
+  '#F97316', '#6366F1', '#14B8A6', '#A855F7',
+  '#22C55E', '#EAB308', '#0EA5E9', '#F43F5E',
+  '#64748B', '#D97706', '#7C3AED', '#0891B2',
 ];
 
 interface Props {
@@ -16,7 +19,6 @@ interface Props {
 export default function DisciplineManager({ projectId, disciplines, onChanged }: Props) {
   const [newName, setNewName] = useState('');
   const [newAbbr, setNewAbbr] = useState('');
-  const [newColor, setNewColor] = useState(PHASE_COLORS[0]);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
@@ -28,15 +30,14 @@ export default function DisciplineManager({ projectId, disciplines, onChanged }:
     if (!newName.trim()) return;
     setAdding(true);
     try {
+      // No color sent — backend auto-assigns the next unused palette color
       await api.disciplines.add(projectId, {
         name: newName.trim(),
         abbreviation: newAbbr.trim(),
-        color: newColor,
         order_index: disciplines.length,
       });
       setNewName('');
       setNewAbbr('');
-      setNewColor(PHASE_COLORS[disciplines.length % PHASE_COLORS.length]);
       onChanged();
     } catch (err) {
       alert(`Failed to add discipline: ${err}`);
@@ -90,12 +91,9 @@ export default function DisciplineManager({ projectId, disciplines, onChanged }:
             >
               {editingId === d.id ? (
                 <>
-                  <input
-                    type="color"
-                    value={editColor}
-                    onChange={e => setEditColor(e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border-0"
-                  />
+                  {/* Color dot preview */}
+                  <div className="w-4 h-4 rounded-full flex-shrink-0 border border-gray-200" style={{ backgroundColor: editColor }} />
+                  {/* Name */}
                   <input
                     type="text"
                     value={editName}
@@ -104,6 +102,7 @@ export default function DisciplineManager({ projectId, disciplines, onChanged }:
                     className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     autoFocus
                   />
+                  {/* Abbreviation */}
                   <input
                     type="text"
                     value={editAbbr}
@@ -111,12 +110,14 @@ export default function DisciplineManager({ projectId, disciplines, onChanged }:
                     placeholder="Abbr"
                     className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                  <div className="flex gap-1">
-                    {PHASE_COLORS.map(c => (
+                  {/* Compact palette swatches */}
+                  <div className="flex flex-wrap gap-1 max-w-[120px]">
+                    {PALETTE.map(c => (
                       <button
                         key={c}
+                        type="button"
                         onClick={() => setEditColor(c)}
-                        className="w-4 h-4 rounded-full border-2 transition-all"
+                        className="w-4 h-4 rounded-full border-2 transition-all flex-shrink-0"
                         style={{ backgroundColor: c, borderColor: editColor === c ? '#4338CA' : 'transparent' }}
                       />
                     ))}
@@ -168,43 +169,29 @@ export default function DisciplineManager({ projectId, disciplines, onChanged }:
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="space-y-2 mt-2">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newName}
-            onChange={e => setNewName(e.target.value)}
-            placeholder="Discipline name..."
-            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            type="text"
-            value={newAbbr}
-            onChange={e => setNewAbbr(e.target.value)}
-            placeholder="Abbr"
-            className="w-20 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            {PHASE_COLORS.map(c => (
-              <button
-                type="button"
-                key={c}
-                onClick={() => setNewColor(c)}
-                className="w-5 h-5 rounded-full border-2 transition-all"
-                style={{ backgroundColor: c, borderColor: newColor === c ? '#4338CA' : 'transparent' }}
-              />
-            ))}
-          </div>
-          <button
-            type="submit"
-            disabled={adding || !newName.trim()}
-            className="ml-auto px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            {adding ? '...' : 'Add Discipline'}
-          </button>
-        </div>
+      {/* Add form — no color picker */}
+      <form onSubmit={handleAdd} className="flex gap-2 mt-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="Discipline name..."
+          className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <input
+          type="text"
+          value={newAbbr}
+          onChange={e => setNewAbbr(e.target.value)}
+          placeholder="Abbr"
+          className="w-20 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <button
+          type="submit"
+          disabled={adding || !newName.trim()}
+          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          {adding ? '...' : 'Add'}
+        </button>
       </form>
     </div>
   );
