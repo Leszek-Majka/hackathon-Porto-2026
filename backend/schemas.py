@@ -87,4 +87,63 @@ class MatrixEntryResponse(BaseModel):
         from_attributes = True
 
 
+# IFC File schemas
+class IFCFileResponse(BaseModel):
+    id: int
+    project_id: int
+    filename: str
+    file_path: str
+    ifc_schema: str
+    element_count: int
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Validation schemas
+class ValidationRunResponse(BaseModel):
+    id: int
+    project_id: int
+    phase_id: int
+    ifc_file_id: int
+    status: str
+    run_at: datetime
+    summary_json: str
+    results_json: str
+    error_message: str
+
+    class Config:
+        from_attributes = True
+
+
+# Translation schemas
+class TranslationUpsert(BaseModel):
+    entity_type: str   # spec | requirement
+    entity_id: str
+    field: str         # name | description | instructions | label
+    language_code: str
+    value: str
+
+
+class TranslationResponse(BaseModel):
+    id: int
+    project_id: int
+    entity_type: str
+    entity_id: str
+    field: str
+    language_code: str
+    value: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Project language schemas
+class LanguageUpdate(BaseModel):
+    code: str
+    enabled: bool
+
+
 ProjectDetail.model_rebuild()

@@ -5,3 +5,7 @@ alembic==1.13.1
 pydantic==2.7.1
 python-multipart==0.0.9
 lxml==5.2.2
+ifcopenshell
+reportlab==4.2.0
+pillow==10.3.0
+python-dateutil==2.9.0
