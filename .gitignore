@@ -1,31 +1,15 @@
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
-*.pyd
-.Python
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
-.venv/
 venv/
-env/
 .env
+backend/ids_editor.db
 
 # Node
 node_modules/
-npm-debug.log*
-package-lock.json
-
-# IFC / BIM
-*.ifc.bak
-*.ifczip
-
-# OS
-.DS_Store
-Thumbs.db
+dist/
+.vite/
 
 # IDE
 .vscode/

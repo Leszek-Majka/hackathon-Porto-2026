@@ -1,21 +1,47 @@
-# OpenBIM Hackathon Porto 2026
+# IDS Phase Editor
 
-BIM/IFC development starter project.
+A tool for managing and splitting IFC Information Delivery Specification (IDS) files by project phase.
 
 ## Setup
 
+### Backend
+
 ```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate           # Windows (PowerShell)
+# source venv/bin/activate      # Linux / macOS
 pip install -r requirements.txt
+alembic upgrade head
+uvicorn main:app --reload --port 8000
 ```
 
-## Run
+### Frontend (separate terminal)
 
 ```bash
-python main.py
+cd frontend
+npm install
+npm run dev
+# → opens at http://localhost:5173
 ```
 
-## Tools
+## Features
 
-- **ifcopenshell** 0.8.4 — read/write/create IFC files
-- **ids-lib** — IDS (Information Delivery Specification) validation
-- **web-ifc** (Node.js) — high-performance IFC parsing in JS/WASM
+- **Upload & Parse** — drag-and-drop `.ids` files; extracts specs, requirements, and base optionality
+- **Phase Management** — create named, color-coded delivery phases per project
+- **Phase Matrix Editor** — set each requirement as `required`, `optional`, or `excluded` per phase; auto-saves with 500ms debounce
+- **Compare View** — side-by-side summary cards showing requirement counts per phase
+- **Export** — download phase-specific `.ids` files, or all phases as a ZIP archive
+
+## Tech Stack
+
+- **Backend**: Python 3.11+, FastAPI, SQLite (SQLAlchemy + Alembic)
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS
+
+## API
+
+Backend runs at `http://localhost:8000`. Interactive docs available at `http://localhost:8000/docs`.
+
+## Sample Files
+
+Sample IDS files are in `backend/sample_data/` for testing.
