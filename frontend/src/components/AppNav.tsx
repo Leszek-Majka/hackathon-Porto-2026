@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'export';
 
 interface Props {
   activeTab: AppTab;
@@ -14,6 +14,7 @@ const TABS: { id: AppTab; label: string }[] = [
   { id: 'setup',   label: 'Setup' },
   { id: 'sources', label: 'IDS Sources' },
   { id: 'matrix',  label: 'Matrix' },
+  { id: 'compare', label: 'Compare' },
   { id: 'export',  label: 'Export' },
 ];
 

@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProject } from '../hooks/useProject';
 import { useSetup } from '../hooks/useSetup';
+import { useSources } from '../hooks/useSources';
 import { DragProvider } from '../dnd/DragContext';
 import AppNav from './AppNav';
 import SetupTab from './SetupTab';
 import SourcesTab from './SourcesTab';
 import MatrixTab from './MatrixTab';
+import CompareTab from './CompareTab';
 import ExportTab from './ExportTab';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'export';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +19,7 @@ export default function ProjectDetail() {
 
   const { project, loading: projectLoading, error: projectError, refresh: refreshProject } = useProject(projectId);
   const { phases, disciplines, loading: setupLoading, refresh: refreshSetup } = useSetup(projectId);
+  const { sources } = useSources(projectId);
 
   const [tab, setTab] = useState<AppTab>('setup');
 
@@ -74,6 +77,13 @@ export default function ProjectDetail() {
               projectId={projectId}
               disciplines={disciplines}
               phases={phases}
+            />
+          )}
+
+          {tab === 'compare' && (
+            <CompareTab
+              projectId={projectId}
+              sources={sources}
             />
           )}
 

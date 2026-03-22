@@ -155,6 +155,9 @@ export const api = {
     },
   },
 
+  compare: (projectId: number, sourceA: number, sourceB: number) =>
+    request<any>(`/api/projects/${projectId}/compare?source_a=${sourceA}&source_b=${sourceB}`),
+
   translations: {
     list: (projectId: number) => request<Translation[]>(`/api/projects/${projectId}/translations`),
     upsert: (projectId: number, data: Omit<Translation, 'id' | 'project_id' | 'updated_at'>) =>
