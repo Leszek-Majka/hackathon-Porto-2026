@@ -45,7 +45,7 @@ class IDSFileResponse(BaseModel):
 # Phase schemas
 class PhaseCreate(BaseModel):
     name: str
-    color: Optional[str] = "#3B82F6"
+    color: Optional[str] = None
     order_index: Optional[int] = 0
 
 
