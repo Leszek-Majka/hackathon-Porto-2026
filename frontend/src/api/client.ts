@@ -1,4 +1,4 @@
-import type { Project, Phase, MatrixData, MatrixStatus } from '../types/project';
+import type { Project, Phase, MatrixData, MatrixStatus, AutoFillResponse } from '../types/project';
 import type { IDSParsed } from '../types/ids';
 import type { ValidationRun, IFCFileInfo } from '../types/validation';
 import type { DashboardData } from '../types/dashboard';
@@ -119,6 +119,26 @@ export const api = {
       `${BASE}/api/projects/${projectId}/export/${phaseId}?lang=${lang}`,
     all: (projectId: number) =>
       `${BASE}/api/projects/${projectId}/export`,
+  },
+
+  autofill: {
+    run: (
+      projectId: number,
+      phaseId: number,
+      filters: string[],
+      applyStatus: 'required' | 'optional',
+      dryRun: boolean
+    ) =>
+      request<AutoFillResponse>(`/api/projects/${projectId}/matrix/autofill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phase_id: phaseId,
+          filters,
+          apply_status: applyStatus,
+          dry_run: dryRun,
+        }),
+      }),
   },
 };
 

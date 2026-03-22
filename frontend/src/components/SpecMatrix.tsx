@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import type { IDSSpecification } from '../types/ids';
 import type { Phase, MatrixData, MatrixStatus } from '../types/project';
 import StatusSelector from './StatusSelector';
+import AutoFillPanel from './AutoFillPanel';
 
 interface Props {
+  projectId: number;
   specs: IDSSpecification[];
   phases: Phase[];
   matrixData: MatrixData | null;
   saving: Set<string>;
   onCellChange: (specId: string, reqKey: string, phaseId: number, status: MatrixStatus) => void;
+  onRefresh: () => void;
 }
 
 function getStatus(
@@ -43,8 +46,9 @@ function reqLabel(req: import('../types/ids').IDSRequirement): string {
   return req.key;
 }
 
-export default function SpecMatrix({ specs, phases, matrixData, saving, onCellChange }: Props) {
+export default function SpecMatrix({ projectId, specs, phases, matrixData, saving, onCellChange, onRefresh }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [autoFillPhaseId, setAutoFillPhaseId] = useState<number>(() => phases[0]?.id ?? 0);
 
   function toggleCollapse(specId: string) {
     setCollapsed(prev => {
@@ -73,8 +77,36 @@ export default function SpecMatrix({ specs, phases, matrixData, saving, onCellCh
     );
   }
 
+  const autoFillPhase = sortedPhases.find(p => p.id === autoFillPhaseId) ?? sortedPhases[0];
+
   return (
     <div className="space-y-6">
+      {/* Smart Auto-Fill */}
+      <div>
+        {sortedPhases.length > 2 && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Auto-fill for phase:</span>
+            <select
+              value={autoFillPhaseId}
+              onChange={e => setAutoFillPhaseId(Number(e.target.value))}
+              className="text-xs border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500"
+            >
+              {sortedPhases.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {autoFillPhase && (
+          <AutoFillPanel
+            projectId={projectId}
+            phaseId={autoFillPhase.id}
+            phaseName={autoFillPhase.name}
+            onApplied={onRefresh}
+          />
+        )}
+      </div>
+
       {specs.map(spec => (
         <div
           key={spec.id}
