@@ -1,69 +1,43 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
-import type { MatrixData, MatrixStatus } from '../types/project';
+import type { CellSummary } from '../types/matrix';
 
 export function useMatrix(projectId: number) {
-  const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
-  const [saving, setSaving] = useState<Set<string>>(new Set());
-  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [summary, setSummary] = useState<CellSummary[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const refreshMatrix = useCallback(async () => {
+  const refreshSummary = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await api.matrix.get(projectId);
-      setMatrixData(data);
-    } catch {
-      // silently fail — matrix may not exist yet
+      const data = await api.matrix.summary(projectId);
+      setSummary(data);
+    } finally {
+      setLoading(false);
     }
   }, [projectId]);
 
-  useEffect(() => {
-    refreshMatrix();
-  }, [refreshMatrix]);
+  useEffect(() => { refreshSummary(); }, [refreshSummary]);
 
-  const updateCell = useCallback(
-    (specId: string, reqKey: string, phaseId: number, status: MatrixStatus) => {
-      const cellKey = `${specId}|${reqKey}|${phaseId}`;
+  const getCell = useCallback((did: number, pid: number) =>
+    api.matrix.getCell(projectId, did, pid), [projectId]);
 
-      // Optimistic update
-      setMatrixData(prev => {
-        if (!prev) {
-          return {
-            project_id: projectId,
-            matrix: { [specId]: { [reqKey]: { [String(phaseId)]: status } } },
-            entries: [],
-          };
-        }
-        const matrix = { ...prev.matrix };
-        matrix[specId] = { ...(matrix[specId] ?? {}) };
-        matrix[specId][reqKey] = { ...(matrix[specId][reqKey] ?? {}) };
-        matrix[specId][reqKey][String(phaseId)] = status;
-        return { ...prev, matrix };
-      });
+  const drop = useCallback(async (did: number, pid: number, payload: any) => {
+    const result = await api.matrix.drop(projectId, did, pid, payload);
+    await refreshSummary();
+    return result;
+  }, [projectId, refreshSummary]);
 
-      // Debounced save
-      const existing = debounceTimers.current.get(cellKey);
-      if (existing) clearTimeout(existing);
+  const updateStatus = useCallback((eid: number, status: string) =>
+    api.matrix.updateStatus(projectId, eid, status), [projectId]);
 
-      const timer = setTimeout(async () => {
-        setSaving(prev => new Set(prev).add(cellKey));
-        try {
-          await api.matrix.update(projectId, specId, reqKey, phaseId, status);
-        } catch (err) {
-          console.error('Failed to save matrix cell:', err);
-        } finally {
-          setSaving(prev => {
-            const next = new Set(prev);
-            next.delete(cellKey);
-            return next;
-          });
-          debounceTimers.current.delete(cellKey);
-        }
-      }, 500);
+  const deleteEntry = useCallback((eid: number) =>
+    api.matrix.deleteEntry(projectId, eid), [projectId]);
 
-      debounceTimers.current.set(cellKey, timer);
-    },
-    [projectId]
-  );
+  const deleteGroup = useCallback((gkey: string) =>
+    api.matrix.deleteGroup(projectId, gkey), [projectId]);
 
-  return { matrixData, saving, updateCell, refreshMatrix };
+  const getCellSummary = useCallback((did: number, pid: number) =>
+    summary.find(s => s.discipline_id === did && s.phase_id === pid), [summary]);
+
+  return { summary, loading, refreshSummary, getCell, drop, updateStatus, deleteEntry, deleteGroup, getCellSummary };
 }

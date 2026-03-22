@@ -20,6 +20,9 @@ class Project(Base):
     validation_runs = relationship("ValidationRun", back_populates="project", cascade="all, delete-orphan")
     translations = relationship("Translation", back_populates="project", cascade="all, delete-orphan")
     languages = relationship("ProjectLanguage", back_populates="project", cascade="all, delete-orphan")
+    disciplines = relationship("Discipline", back_populates="project", cascade="all, delete-orphan", order_by="Discipline.order_index")
+    sources = relationship("IDSSource", back_populates="project", cascade="all, delete-orphan")
+    matrix_cells = relationship("MatrixCell", back_populates="project", cascade="all, delete-orphan")
 
 
 class IDSFile(Base):
@@ -48,6 +51,7 @@ class Phase(Base):
     project = relationship("Project", back_populates="phases")
     matrix_entries = relationship("PhaseMatrix", back_populates="phase", cascade="all, delete-orphan")
     validation_runs = relationship("ValidationRun", back_populates="phase")
+    matrix_cells = relationship("MatrixCell", back_populates="phase", cascade="all, delete-orphan")
 
 
 class PhaseMatrix(Base):
@@ -121,3 +125,73 @@ class ProjectLanguage(Base):
     enabled = Column(Integer, default=1)  # 1 = enabled, 0 = disabled
 
     project = relationship("Project", back_populates="languages")
+
+
+class Discipline(Base):
+    __tablename__ = "disciplines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    name = Column(String, nullable=False)
+    abbreviation = Column(String, default="")
+    color = Column(String, default="#6366F1")
+    order_index = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("Project", back_populates="disciplines")
+    matrix_cells = relationship("MatrixCell", back_populates="discipline", cascade="all, delete-orphan")
+
+
+class IDSSource(Base):
+    __tablename__ = "ids_sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    title = Column(String, default="")
+    author = Column(String, default="")
+    date = Column(String, default="")
+    version = Column(String, default="")
+    raw_xml = Column(Text, nullable=False)
+    parsed_json = Column(Text, nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("Project", back_populates="sources")
+    cell_entries = relationship("CellEntry", back_populates="source_ids", cascade="all, delete-orphan")
+
+
+class MatrixCell(Base):
+    __tablename__ = "matrix_cells"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    discipline_id = Column(Integer, ForeignKey("disciplines.id"), nullable=False)
+    phase_id = Column(Integer, ForeignKey("phases.id"), nullable=False)
+    header_json = Column(Text, default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    project = relationship("Project", back_populates="matrix_cells")
+    discipline = relationship("Discipline", back_populates="matrix_cells")
+    phase = relationship("Phase", back_populates="matrix_cells")
+    entries = relationship("CellEntry", back_populates="cell", cascade="all, delete-orphan", order_by="CellEntry.order_index")
+
+
+class CellEntry(Base):
+    __tablename__ = "cell_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cell_id = Column(Integer, ForeignKey("matrix_cells.id"), nullable=False)
+    source_ids_id = Column(Integer, ForeignKey("ids_sources.id"), nullable=True)
+    entry_type = Column(String, nullable=False)  # specification|applicability|requirement
+    spec_name = Column(String, default="")
+    applicability_json = Column(Text, default="[]")
+    requirement_json = Column(Text, default="{}")
+    status = Column(String, default="required")  # required|optional|prohibited
+    group_key = Column(String, nullable=False)  # UUID
+    group_type = Column(String, default="standalone")  # specification|applicability|standalone
+    order_index = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    cell = relationship("MatrixCell", back_populates="entries")
+    source_ids = relationship("IDSSource", back_populates="cell_entries")

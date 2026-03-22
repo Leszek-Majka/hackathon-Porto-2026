@@ -25,6 +25,15 @@ def _phase_to_dict(phase: Phase) -> dict:
     }
 
 
+@router.get("/{project_id}/phases", response_model=None)
+def list_phases(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    phases = sorted(project.phases, key=lambda p: p.order_index)
+    return [_phase_to_dict(p) for p in phases]
+
+
 @router.post("/{project_id}/phases", response_model=None)
 def add_phase(project_id: int, data: PhaseCreate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()

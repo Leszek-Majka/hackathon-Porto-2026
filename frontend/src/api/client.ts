@@ -1,5 +1,7 @@
-import type { Project, Phase, MatrixData, MatrixStatus } from '../types/project';
-import type { IDSParsed } from '../types/ids';
+import type { Discipline } from '../types/setup';
+import type { IDSSource } from '../types/sources';
+import type { CellSummary, CellData, CellHeader } from '../types/matrix';
+import type { Project, Phase } from '../types/project';
 import type { ValidationRun, IFCFileInfo } from '../types/validation';
 import type { DashboardData } from '../types/dashboard';
 import type { Translation, ProjectLanguage } from '../types/translations';
@@ -28,28 +30,8 @@ export const api = {
     delete: (id: number) => request<{ ok: boolean }>(`/api/projects/${id}`, { method: 'DELETE' }),
   },
 
-  ids: {
-    upload: (projectId: number, file: File) => {
-      const form = new FormData();
-      form.append('file', file);
-      return request<{ id: number; filename: string; parsed_json: string }>(
-        `/api/projects/${projectId}/upload`,
-        { method: 'POST', body: form }
-      );
-    },
-    get: (projectId: number) => request<IDSParsed>(`/api/projects/${projectId}/ids`),
-  },
-
-  ifc: {
-    upload: (projectId: number, file: File) => {
-      const form = new FormData();
-      form.append('file', file);
-      return request<IFCFileInfo>(`/api/projects/${projectId}/upload-ifc`, { method: 'POST', body: form });
-    },
-    info: (projectId: number) => request<IFCFileInfo>(`/api/projects/${projectId}/ifc-info`),
-  },
-
   phases: {
+    list: (projectId: number) => request<Phase[]>(`/api/projects/${projectId}/phases`),
     add: (projectId: number, name: string, color?: string, orderIndex?: number) =>
       request<Phase>(`/api/projects/${projectId}/phases`, {
         method: 'POST',
@@ -66,14 +48,92 @@ export const api = {
       request<{ ok: boolean }>(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'DELETE' }),
   },
 
-  matrix: {
-    get: (projectId: number) => request<MatrixData>(`/api/projects/${projectId}/matrix`),
-    update: (projectId: number, specId: string, reqKey: string, phaseId: number, status: MatrixStatus) =>
-      request<MatrixEntry>(`/api/projects/${projectId}/matrix`, {
+  disciplines: {
+    list: (projectId: number) => request<Discipline[]>(`/api/projects/${projectId}/disciplines`),
+    add: (projectId: number, data: { name: string; abbreviation?: string; color?: string; order_index?: number }) =>
+      request<Discipline>(`/api/projects/${projectId}/disciplines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    update: (projectId: number, did: number, data: Partial<Discipline>) =>
+      request<Discipline>(`/api/projects/${projectId}/disciplines/${did}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec_id: specId, requirement_key: reqKey, phase_id: phaseId, status }),
+        body: JSON.stringify(data),
       }),
+    delete: (projectId: number, did: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/disciplines/${did}`, { method: 'DELETE' }),
+  },
+
+  sources: {
+    list: (projectId: number) => request<IDSSource[]>(`/api/projects/${projectId}/sources`),
+    upload: (projectId: number, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return request<IDSSource>(`/api/projects/${projectId}/sources`, { method: 'POST', body: form });
+    },
+    get: (projectId: number, sid: number) => request<IDSSource>(`/api/projects/${projectId}/sources/${sid}`),
+    delete: (projectId: number, sid: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/sources/${sid}`, { method: 'DELETE' }),
+  },
+
+  matrix: {
+    summary: (projectId: number) => request<CellSummary[]>(`/api/projects/${projectId}/matrix`),
+    getCell: (projectId: number, did: number, pid: number) =>
+      request<CellData>(`/api/projects/${projectId}/matrix/${did}/${pid}`),
+    updateHeader: (projectId: number, did: number, pid: number, header: CellHeader) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/${did}/${pid}/header`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(header),
+      }),
+    drop: (projectId: number, did: number, pid: number, payload: any) =>
+      request<{ ok: boolean; group_key: string; entries_added: number }>(`/api/projects/${projectId}/matrix/${did}/${pid}/drop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+    updateStatus: (projectId: number, eid: number, status: string) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/entries/${eid}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }),
+    deleteEntry: (projectId: number, eid: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/entries/${eid}`, { method: 'DELETE' }),
+    deleteGroup: (projectId: number, gkey: string) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/entries/group/${gkey}`, { method: 'DELETE' }),
+    clearCell: (projectId: number, did: number, pid: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/${did}/${pid}`, { method: 'DELETE' }),
+  },
+
+  export: {
+    cellUrl: (projectId: number, did: number, pid: number) => `${BASE}/api/projects/${projectId}/export/cell/${did}/${pid}`,
+    disciplineUrl: (projectId: number, did: number) => `${BASE}/api/projects/${projectId}/export/discipline/${did}`,
+    phaseUrl: (projectId: number, pid: number) => `${BASE}/api/projects/${projectId}/export/phase/${pid}`,
+    allUrl: (projectId: number) => `${BASE}/api/projects/${projectId}/export/all`,
+  },
+
+  ids: {
+    upload: (projectId: number, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return request<{ id: number; filename: string; parsed_json: string }>(
+        `/api/projects/${projectId}/upload`,
+        { method: 'POST', body: form }
+      );
+    },
+    get: (projectId: number) => request<any>(`/api/projects/${projectId}/ids`),
+  },
+
+  ifc: {
+    upload: (projectId: number, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return request<IFCFileInfo>(`/api/projects/${projectId}/upload-ifc`, { method: 'POST', body: form });
+    },
+    info: (projectId: number) => request<IFCFileInfo>(`/api/projects/${projectId}/ifc-info`),
   },
 
   validation: {
@@ -113,13 +173,4 @@ export const api = {
         body: JSON.stringify(updates),
       }),
   },
-
-  export: {
-    phase: (projectId: number, phaseId: number, lang = 'en') =>
-      `${BASE}/api/projects/${projectId}/export/${phaseId}?lang=${lang}`,
-    all: (projectId: number) =>
-      `${BASE}/api/projects/${projectId}/export`,
-  },
 };
-
-type MatrixEntry = import('../types/project').MatrixEntry;

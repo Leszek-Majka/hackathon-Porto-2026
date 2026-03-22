@@ -46,7 +46,7 @@ export default function ExportPanel({ projectId, phases }: Props) {
                 ))}
               </select>
               <a
-                href={api.export.phase(projectId, phase.id, lang)}
+                href={api.export.phaseUrl(projectId, phase.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export default function ExportPanel({ projectId, phases }: Props) {
 
       <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
         <a
-          href={api.export.all(projectId)}
+          href={api.export.allUrl(projectId)}
           className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

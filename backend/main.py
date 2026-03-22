@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models  # noqa: F401 — ensure models are registered
 
-from routers import projects, phases, matrix, export, validation, dashboard, translations
+from routers import projects, phases, sources, setup as setup_router, matrix, export, validation, dashboard, translations
 
 EXPORTS_DIR = os.path.join(os.path.dirname(__file__), "exports")
 
@@ -47,6 +47,8 @@ app.add_middleware(
 
 app.include_router(projects.router)
 app.include_router(phases.router)
+app.include_router(setup_router.router)
+app.include_router(sources.router)
 app.include_router(matrix.router)
 app.include_router(export.router)
 app.include_router(validation.router)

@@ -2,28 +2,43 @@
 
 A tool for managing and splitting IFC Information Delivery Specification (IDS) files by project phase.
 
-## Setup
+## Pierwsze uruchomienie (one-time setup)
 
-### Backend
-
+**Terminal 1 — Backend**
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate           # Windows (PowerShell)
-# source venv/bin/activate      # Linux / macOS
+venv\Scripts\activate           # Windows PowerShell
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn main:app --reload --port 8000
 ```
 
-### Frontend (separate terminal)
-
+**Terminal 2 — Frontend**
 ```bash
 cd frontend
 npm install
 npm run dev
-# → opens at http://localhost:5173
 ```
+
+---
+
+## Kolejne uruchomienia
+
+**Terminal 1 — Backend**
+```bash
+cd backend
+venv\Scripts\activate
+uvicorn main:app --reload --port 8000
+```
+
+**Terminal 2 — Frontend**
+```bash
+cd frontend
+npm run dev
+```
+
+App działa na: **http://localhost:5173** · API docs: **http://localhost:8000/docs**
 
 ## Features
 
