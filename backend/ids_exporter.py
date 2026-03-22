@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import json
 import re
 from datetime import date
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 IDS_NS = "http://standards.buildingsmart.org/IDS"
 XS_NS = "http://www.w3.org/2001/XMLSchema"
@@ -135,6 +135,8 @@ def export_phase(
     phase_name: str,
     matrix_entries: List[Any],  # list of PhaseMatrix ORM objects or dicts
     phase_id: int,
+    lang: str = "en",
+    translations: Optional[Dict] = None,  # {entity_type: {entity_id: {field: {lang: value}}}}
 ) -> str:
     parsed_data = json.loads(parsed_json)
 
@@ -158,4 +160,45 @@ def export_phase(
             matrix[spec_id] = {}
         matrix[spec_id][req_key] = status
 
-    return _export_phase_ids(raw_xml, parsed_data, phase_name, matrix)
+    xml_str = _export_phase_ids(raw_xml, parsed_data, phase_name, matrix)
+
+    # Apply translations if non-English
+    if lang != "en" and translations:
+        xml_str = _apply_translations(xml_str, translations, lang)
+
+    return xml_str
+
+
+def _apply_translations(xml_str: str, translations: Dict, lang: str) -> str:
+    """Apply language-specific translations to spec/requirement text nodes."""
+    try:
+        root = ET.fromstring(xml_str.split("\n", 1)[-1])  # skip xml declaration
+    except Exception:
+        return xml_str
+
+    ns = IDS_NS
+
+    def qtag(tag):
+        return f"{{{ns}}}{tag}"
+
+    specs_el = root.find(qtag("specifications"))
+    if not specs_el:
+        return xml_str
+
+    spec_translations = translations.get("spec", {})
+
+    for spec_idx, spec_el in enumerate(specs_el.findall(qtag("specification"))):
+        spec_name = spec_el.get("name", f"Specification {spec_idx}")
+        spec_id = f"spec_{spec_idx}_{spec_name.replace(' ', '_')}"
+        spec_t = spec_translations.get(spec_id, {})
+
+        for field in ["name", "description", "instructions"]:
+            translated = spec_t.get(field, {}).get(lang)
+            if translated:
+                if field == "name":
+                    spec_el.set("name", translated)
+                elif field in ("description", "instructions"):
+                    spec_el.set(field, translated)
+
+    xml_out = ET.tostring(root, encoding="unicode")
+    return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml_out}'

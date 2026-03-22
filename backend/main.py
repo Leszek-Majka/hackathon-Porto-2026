@@ -1,15 +1,41 @@
+import os
+import time
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Base
 import models  # noqa: F401 — ensure models are registered
 
-from routers import projects, phases, matrix, export
+from routers import projects, phases, matrix, export, validation, dashboard, translations
 
-# Create all tables on startup
-Base.metadata.create_all(bind=engine)
+EXPORTS_DIR = os.path.join(os.path.dirname(__file__), "exports")
 
-app = FastAPI(title="IDS Phase Editor API", version="1.0.0")
+
+def _cleanup_old_exports():
+    """Remove generated PDFs older than 24h."""
+    if not os.path.exists(EXPORTS_DIR):
+        return
+    now = time.time()
+    for fname in os.listdir(EXPORTS_DIR):
+        fpath = os.path.join(EXPORTS_DIR, fname)
+        if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > 86400:
+            try:
+                os.remove(fpath)
+            except OSError:
+                pass
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    Base.metadata.create_all(bind=engine)
+    _cleanup_old_exports()
+    yield
+
+
+app = FastAPI(title="IDS Phase Editor API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,8 +49,11 @@ app.include_router(projects.router)
 app.include_router(phases.router)
 app.include_router(matrix.router)
 app.include_router(export.router)
+app.include_router(validation.router)
+app.include_router(dashboard.router)
+app.include_router(translations.router)
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2.0.0"}
