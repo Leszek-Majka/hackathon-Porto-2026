@@ -55,6 +55,7 @@ export default function MatrixCell({
       applicability_index: raw.applicabilityIndex,
       requirement_index: raw.requirementIndex,
       apply_to_all_phases: applyToAll,
+      value_override: raw.valueOverride ?? null,
     };
     await onDrop(payload);
   }

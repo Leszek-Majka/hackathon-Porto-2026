@@ -199,30 +199,33 @@ export default function CellHeader({ header, sources, onSave, collapsed, onToggl
     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
 
       {/* ── Panel title bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center gap-2 flex-1 text-left group"
-          title="Collapse IDS Header"
-        >
-          <svg
-            className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-transform flex-shrink-0 rotate-180"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+      <div className="px-4 pt-2.5 pb-2 border-b border-gray-200 dark:border-gray-700 space-y-1.5">
+        {/* Row 1: collapse + label + status */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleCollapse}
+            className="flex items-center gap-2 flex-1 text-left group"
+            title="Collapse IDS Header"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-            IDS Header
-          </span>
-          {saving && <span className="text-xs text-amber-500 ml-1">Saving...</span>}
-          {hasDirty && !saving && (
-            <span className="text-xs text-orange-500 dark:text-orange-400 ml-1">Unsaved</span>
-          )}
-        </button>
-
+            <svg
+              className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-transform flex-shrink-0 rotate-180"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+              IDS Header
+            </span>
+            {saving && <span className="text-xs text-amber-500 ml-1">Saving...</span>}
+            {hasDirty && !saving && (
+              <span className="text-xs text-orange-500 dark:text-orange-400 ml-1">Unsaved</span>
+            )}
+          </button>
+        </div>
+        {/* Row 2: copy-from dropdown (full width) */}
         {sources.length > 0 && (
           <select
-            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 ml-2"
+            className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             defaultValue=""
             onChange={e => {
               if (e.target.value) handleCopyFrom(Number(e.target.value));

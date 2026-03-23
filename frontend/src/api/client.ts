@@ -100,6 +100,18 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       }),
+    updateEntryValues: (projectId: number, eid: number, values: string[]) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/entries/${eid}/values`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      }),
+    updateSpecMeta: (projectId: number, did: number, pid: number, specName: string, meta: { identifier: string; description: string; instructions: string; ifc_version: string }) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/${did}/${pid}/spec-meta`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spec_name: specName, ...meta }),
+      }),
     deleteEntry: (projectId: number, eid: number) =>
       request<{ ok: boolean }>(`/api/projects/${projectId}/matrix/entries/${eid}`, { method: 'DELETE' }),
     deleteGroup: (projectId: number, gkey: string) =>

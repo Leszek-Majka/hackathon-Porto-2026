@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { CellEntry } from '../types/matrix';
 import EntryRow from './EntryRow';
+import ApplicabilityChips from './ApplicabilityChips';
 
 interface Props {
   specName: string;
@@ -9,9 +10,10 @@ interface Props {
   onStatusChange: (eid: number, status: string) => Promise<void>;
   onDeleteEntry: (eid: number) => Promise<void>;
   onDeleteGroup: (gkey: string) => Promise<void>;
+  onUpdateValues?: (eid: number, values: string[]) => Promise<void>;
 }
 
-export default function EntryGroup({ specName, groupKey, entries, onStatusChange, onDeleteEntry, onDeleteGroup }: Props) {
+export default function EntryGroup({ specName, groupKey, entries, onStatusChange, onDeleteEntry, onDeleteGroup, onUpdateValues }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -29,7 +31,12 @@ export default function EntryGroup({ specName, groupKey, entries, onStatusChange
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
-        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex-1 truncate">{specName}</span>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate block">{specName}</span>
+          {entries[0]?.applicability?.[0] && (
+            <ApplicabilityChips applicability={entries[0].applicability[0]} variant="entry" />
+          )}
+        </div>
         <span className="text-xs text-gray-400 dark:text-gray-500">
           {entries.length} req{entries.length !== 1 ? 's' : ''}
         </span>
@@ -53,6 +60,7 @@ export default function EntryGroup({ specName, groupKey, entries, onStatusChange
               entry={entry}
               onStatusChange={onStatusChange}
               onDelete={onDeleteEntry}
+              onUpdateValues={onUpdateValues}
             />
           ))}
         </div>

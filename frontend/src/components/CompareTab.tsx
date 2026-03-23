@@ -48,6 +48,8 @@ function typeColor(type: string): string {
     case 'attribute':      return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
     case 'material':       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
     case 'classification': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    case 'partOf':         return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+    case 'entity':         return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
     default:               return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
   }
 }
@@ -58,6 +60,8 @@ function typeIcon(type: string): string {
     case 'attribute': return 'A';
     case 'material': return 'M';
     case 'classification': return 'C';
+    case 'partOf': return 'PO';
+    case 'entity': return 'E';
     default: return '?';
   }
 }
@@ -149,7 +153,7 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.matrix.getSummary(projectId).then(setSummary).catch(() => {});
+    api.matrix.summary(projectId).then(setSummary).catch(() => {});
   }, [projectId]);
 
   // Build the list of cells with entries, labelled "Discipline × Phase"

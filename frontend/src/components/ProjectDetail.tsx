@@ -58,7 +58,7 @@ export default function ProjectDetail() {
         />
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto p-8 flex flex-col min-h-0">
           {tab === 'setup' && (
             <SetupTab
               projectId={projectId}

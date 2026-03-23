@@ -59,6 +59,7 @@ def _parse_entity(applicability: ET.Element) -> Optional[Dict]:
 
 def _parse_applicability(applicability: ET.Element) -> Dict:
     result: Dict[str, Any] = {}
+
     entity = _parse_entity(applicability)
     if entity:
         result["entity"] = entity
@@ -66,10 +67,9 @@ def _parse_applicability(applicability: ET.Element) -> Dict:
     part_of = applicability.find(_ns("partOf"))
     if part_of is not None:
         relation = part_of.get("relation")
-        entity_el = part_of.find(_ns("entity"))
         result["partOf"] = {
             "relation": relation,
-            "entity": _parse_entity(part_of) if entity_el is None else _parse_entity(part_of),
+            "entity": _parse_entity(part_of),
         }
 
     # property filters
@@ -77,12 +77,44 @@ def _parse_applicability(applicability: ET.Element) -> Dict:
     for prop_el in applicability.findall(_ns("property")):
         ps_el = prop_el.find(_ns("propertySet"))
         bn_el = prop_el.find(_ns("baseName"))
+        val_el = prop_el.find(_ns("value"))
         props.append({
             "propertySet": _parse_value_constraint(ps_el),
             "baseName": _parse_value_constraint(bn_el),
+            "value": _parse_value_constraint(val_el),
         })
     if props:
         result["properties"] = props
+
+    # attribute filters
+    attrs = []
+    for attr_el in applicability.findall(_ns("attribute")):
+        name_el = attr_el.find(_ns("name"))
+        val_el = attr_el.find(_ns("value"))
+        attrs.append({
+            "name": _parse_value_constraint(name_el),
+            "value": _parse_value_constraint(val_el),
+        })
+    if attrs:
+        result["attributes"] = attrs
+
+    # material filters
+    mat_el = applicability.find(_ns("material"))
+    if mat_el is not None:
+        val_el = mat_el.find(_ns("value"))
+        result["material"] = {"value": _parse_value_constraint(val_el)}
+
+    # classification filters
+    classifications = []
+    for cls_el in applicability.findall(_ns("classification")):
+        val_el = cls_el.find(_ns("value"))
+        sys_el = cls_el.find(_ns("system"))
+        classifications.append({
+            "value": _parse_value_constraint(val_el),
+            "system": _parse_value_constraint(sys_el),
+        })
+    if classifications:
+        result["classifications"] = classifications
 
     return result
 
@@ -168,10 +200,16 @@ def _parse_requirement(req_type: str, element: ET.Element, index: int) -> Dict:
         if entity_el is not None:
             req["entity"] = _parse_entity(element)
 
+    elif req_type == "entity":
+        name_el = element.find(_ns("name"))
+        predef_el = element.find(_ns("predefinedType"))
+        req["name"] = _parse_value_constraint(name_el)
+        req["predefinedType"] = _parse_value_constraint(predef_el)
+
     return req
 
 
-REQ_TYPES = ["attribute", "property", "material", "classification", "partOf"]
+REQ_TYPES = ["attribute", "property", "material", "classification", "partOf", "entity"]
 
 
 def parse_ids(xml_content: str) -> Dict[str, Any]:

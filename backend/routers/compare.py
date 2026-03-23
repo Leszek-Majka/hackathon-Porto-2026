@@ -21,6 +21,14 @@ def _req_signature(req: dict) -> str:
     elif t == "classification":
         sys_ = (req.get("system") or {}).get("value", "")
         return f"classification::{sys_}"
+    elif t == "partOf":
+        relation = req.get("relation", "")
+        entity_name = ((req.get("entity") or {}).get("name") or {}).get("value", "")
+        return f"partOf::{relation}::{entity_name}"
+    elif t == "entity":
+        name = (req.get("name") or {}).get("value", "")
+        predef = (req.get("predefinedType") or {}).get("value", "")
+        return f"entity::{name}::{predef}"
     return t
 
 
@@ -38,6 +46,13 @@ def _req_label(req: dict) -> str:
         return "Material"
     elif t == "classification":
         return (req.get("system") or {}).get("value", "Classification")
+    elif t == "partOf":
+        entity_name = ((req.get("entity") or {}).get("name") or {}).get("value", "")
+        return f"partOf {entity_name}" if entity_name else "Part Of"
+    elif t == "entity":
+        name = (req.get("name") or {}).get("value", "")
+        predef = (req.get("predefinedType") or {}).get("value", "")
+        return f"{name} ({predef})" if predef else name or "Entity"
     return t
 
 

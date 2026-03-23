@@ -191,6 +191,7 @@ class CellEntry(Base):
     group_key = Column(String, nullable=False)  # UUID
     group_type = Column(String, default="standalone")  # specification|applicability|standalone
     order_index = Column(Integer, default=0)
+    spec_meta_json = Column(Text, default="{}")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     cell = relationship("MatrixCell", back_populates="entries")

@@ -37,7 +37,7 @@ export interface IDSRequirement {
   name?: { type: string; value?: string };
   propertySet?: { type: string; value?: string };
   baseName?: { type: string; value?: string };
-  value?: { type: string; value?: string };
+  value?: { type: string; value?: string; values?: string[]; pattern?: string };
   system?: { type: string; value?: string };
   relation?: string;
 }

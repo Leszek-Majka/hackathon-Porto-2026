@@ -5,6 +5,13 @@ export interface CellSummary {
   spec_count: number;
 }
 
+export interface SpecMeta {
+  identifier: string;
+  description: string;
+  instructions: string;
+  ifc_version: string;
+}
+
 export interface CellEntry {
   id: number;
   cell_id: number;
@@ -17,6 +24,7 @@ export interface CellEntry {
   group_key: string;
   group_type: string;
   order_index: number;
+  spec_meta: SpecMeta;
 }
 
 export interface CellHeader {
@@ -45,4 +53,5 @@ export interface DropPayload {
   specNames?: string[];          // for multi_specification
   applicabilityIndex: number | null;
   requirementIndex: number | null;
+  valueOverride?: string;        // for single enum value drops
 }

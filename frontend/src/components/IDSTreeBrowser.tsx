@@ -1,45 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useDragContext } from '../dnd/DragContext';
-import type { IDSSource, IDSParsed, IDSSpec, IDSRequirement } from '../types/sources';
+import type { IDSSource, IDSParsed, IDSSpec } from '../types/sources';
 import type { DropPayload } from '../types/matrix';
 import { SpecDragNode, RequirementDragNode } from './IDSTreeNode';
+import ApplicabilityChips from './ApplicabilityChips';
 
 interface Props {
   source: IDSSource;
   projectId: number;
-}
-
-function reqLabel(req: IDSRequirement): string {
-  if (req.type === 'attribute') return req.name?.value ?? 'Attribute';
-  if (req.type === 'property') {
-    const ps = req.propertySet?.value ?? '';
-    const bn = req.baseName?.value ?? '';
-    return ps && bn ? `${ps}.${bn}` : bn || ps || 'Property';
-  }
-  if (req.type === 'material') return 'Material';
-  if (req.type === 'classification') return req.system?.value ?? 'Classification';
-  return req.type;
-}
-
-function typeIcon(type: string): string {
-  switch (type) {
-    case 'property': return 'P';
-    case 'attribute': return 'A';
-    case 'material': return 'M';
-    case 'classification': return 'C';
-    default: return '?';
-  }
-}
-
-function typeColor(type: string): string {
-  switch (type) {
-    case 'property': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'attribute': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-    case 'material': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-    case 'classification': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
-  }
 }
 
 export default function IDSTreeBrowser({ source, projectId }: Props) {
@@ -236,6 +205,11 @@ export default function IDSTreeBrowser({ source, projectId }: Props) {
                     ? specs.filter((s, i) => selectedSpecIds.has(s.id ?? `spec_${i}`)).map(s => s.name)
                     : undefined}
                 />
+                {spec.applicability && Object.keys(spec.applicability).length > 0 && (
+                  <div className="px-2 pb-1">
+                    <ApplicabilityChips applicability={spec.applicability} variant="browser" />
+                  </div>
+                )}
               </div>
             </div>
 
