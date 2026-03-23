@@ -87,6 +87,17 @@ def _extract_cell_reqs(cell: MatrixCell | None) -> dict:
     return result
 
 
+def _extract_spec_metas(cell: MatrixCell | None) -> dict:
+    """Returns {spec_name: spec_meta_dict} — first entry wins per spec."""
+    if not cell:
+        return {}
+    result = {}
+    for entry in cell.entries:
+        if entry.spec_name and entry.spec_name not in result:
+            result[entry.spec_name] = json.loads(entry.spec_meta_json or "{}")
+    return result
+
+
 def _cell_stats(cell: MatrixCell | None) -> dict:
     if not cell or not cell.entries:
         return {"spec_count": 0, "total": 0, "required": 0, "optional": 0, "prohibited": 0, "enum_count": 0}
@@ -123,12 +134,14 @@ def compare_cells(
     cell_a = db.query(MatrixCell).filter_by(project_id=project_id, discipline_id=disc_a, phase_id=phase_a).first()
     cell_b = db.query(MatrixCell).filter_by(project_id=project_id, discipline_id=disc_b, phase_id=phase_b).first()
 
-    reqs_a  = _extract_cell_reqs(cell_a)
-    reqs_b  = _extract_cell_reqs(cell_b)
-    stats_a = _cell_stats(cell_a)
-    stats_b = _cell_stats(cell_b)
+    reqs_a   = _extract_cell_reqs(cell_a)
+    reqs_b   = _extract_cell_reqs(cell_b)
+    stats_a  = _cell_stats(cell_a)
+    stats_b  = _cell_stats(cell_b)
     header_a = json.loads(cell_a.header_json) if cell_a else {}
     header_b = json.loads(cell_b.header_json) if cell_b else {}
+    metas_a  = _extract_spec_metas(cell_a)
+    metas_b  = _extract_spec_metas(cell_b)
 
     sigs_a      = set(reqs_a.keys())
     sigs_b      = set(reqs_b.keys())
@@ -179,6 +192,24 @@ def compare_cells(
             "identical": sum(1 for e in identical_list if e["spec_name"] == spec),
         })
 
+    # Spec metadata changes (for specs present in both cells)
+    _META_FIELDS = [
+        ("identifier",   "Identifier"),
+        ("description",  "Description"),
+        ("instructions", "Instructions"),
+        ("ifc_version",  "IFC Version"),
+    ]
+    spec_meta_changes = []
+    for spec_name in sorted(set(metas_a.keys()) & set(metas_b.keys())):
+        ma, mb = metas_a[spec_name], metas_b[spec_name]
+        changed_fields = [
+            {"field": label, "value_a": ma.get(key, ""), "value_b": mb.get(key, "")}
+            for key, label in _META_FIELDS
+            if ma.get(key, "") != mb.get(key, "")
+        ]
+        if changed_fields:
+            spec_meta_changes.append({"spec_name": spec_name, "fields": changed_fields})
+
     srt = lambda lst: sorted(lst, key=lambda r: r["label"])
 
     return {
@@ -209,7 +240,8 @@ def compare_cells(
         "only_b":        srt([reqs_b[s] for s in only_b_sigs]),
         "changed":       srt(changed_list),
         "identical":     srt(identical_list),
-        "status_changes": srt(status_changes),
-        "value_changes":  srt(value_changes),
-        "by_spec":       by_spec,
+        "status_changes":    srt(status_changes),
+        "value_changes":     srt(value_changes),
+        "by_spec":           by_spec,
+        "spec_meta_changes": spec_meta_changes,
     }

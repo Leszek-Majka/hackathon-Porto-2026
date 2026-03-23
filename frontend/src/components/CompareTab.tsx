@@ -67,6 +67,17 @@ interface BySpec {
   identical: number;
 }
 
+interface SpecMetaField {
+  field: string;
+  value_a: string;
+  value_b: string;
+}
+
+interface SpecMetaChange {
+  spec_name: string;
+  fields: SpecMetaField[];
+}
+
 interface CompareResult {
   cell_a: CellInfo;
   cell_b: CellInfo;
@@ -78,6 +89,7 @@ interface CompareResult {
   status_changes: ChangedReq[];
   value_changes: ChangedReq[];
   by_spec: BySpec[];
+  spec_meta_changes: SpecMetaChange[];
 }
 
 interface Props {
@@ -217,90 +229,205 @@ function StatBar({ label, a, b, colorA, colorB }: {
   );
 }
 
-function EnumChips({ values, color }: { values: string[]; color: 'blue' | 'green' }) {
-  if (values.length === 0) return <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>;
-  const cls = color === 'blue'
-    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-  return (
-    <div className="flex flex-wrap gap-1">
-      {values.map(v => (
-        <span key={v} className={`font-mono text-xs px-1.5 py-0.5 rounded ${cls}`}>{v}</span>
-      ))}
-    </div>
-  );
-}
+// ── Shared table chrome ───────────────────────────────────────────────────────
 
-function ChangedTable({ rows, labelA, labelB }: { rows: ChangedReq[]; labelA: string; labelB: string }) {
-  if (rows.length === 0) return <p className="text-xs text-gray-400 dark:text-gray-500 py-3 px-5">None</p>;
+function TableShell({ labelA, labelB, extraCols, children }: {
+  labelA: string; labelB: string; extraCols?: React.ReactNode; children: React.ReactNode;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 bg-gray-50/60 dark:bg-gray-800/30">
-            <th className="px-4 py-2 text-left font-medium w-8">#</th>
+            <th className="px-4 py-2 text-left font-medium w-7">#</th>
             <th className="px-4 py-2 text-left font-medium">Requirement</th>
             <th className="px-4 py-2 text-left font-medium">Spec</th>
-            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+            {extraCols}
+            <th className="px-4 py-2 text-left font-medium min-w-[150px]">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-                {labelA}
+                <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />{labelA}
               </span>
             </th>
-            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+            <th className="px-4 py-2 text-left font-medium min-w-[150px]">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                {labelB}
+                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />{labelB}
               </span>
             </th>
           </tr>
         </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReqCell({ r }: { r: ChangedReq }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
+      <span className="font-mono text-gray-700 dark:text-gray-300 font-medium">{r.label}</span>
+    </div>
+  );
+}
+
+// ── 1. Spec metadata changes ──────────────────────────────────────────────────
+
+function SpecMetaChangesTable({ changes, labelA, labelB }: {
+  changes: SpecMetaChange[]; labelA: string; labelB: string;
+}) {
+  if (changes.length === 0) return <p className="text-xs text-gray-400 dark:text-gray-500 py-3 px-5">None</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 bg-gray-50/60 dark:bg-gray-800/30">
+            <th className="px-4 py-2 text-left font-medium">Specification</th>
+            <th className="px-4 py-2 text-left font-medium">Field</th>
+            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400" />{labelA}</span>
+            </th>
+            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-400" />{labelB}</span>
+            </th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map((r, i) => {
-            const evenRow = i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20';
-            return (
-              <tr key={r.signature} className={`${evenRow} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 border-b border-gray-50 dark:border-gray-800/60`}>
-                <td className="px-4 py-2.5 text-gray-300 dark:text-gray-600 font-mono">{i + 1}</td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
-                    <span className="font-mono text-gray-700 dark:text-gray-300 font-medium">{r.label}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-gray-400 dark:text-gray-500 truncate max-w-[120px]">{r.spec_name}</td>
-
-                {/* Cell A */}
-                <td className={`px-4 py-2.5 ${r.status_changed ? 'bg-blue-50/60 dark:bg-blue-900/10' : ''}`}>
-                  <div className="space-y-1.5">
-                    <div className={r.status_changed ? 'font-bold' : ''}>
-                      {statusPill(r.status_a)}
-                    </div>
-                    {r.enum_a.length > 0 || r.values_changed ? (
-                      <div className={r.values_changed ? 'ring-1 ring-blue-200 dark:ring-blue-800 rounded p-1' : ''}>
-                        <EnumChips values={r.enum_a} color="blue" />
-                      </div>
-                    ) : null}
-                  </div>
-                </td>
-
-                {/* Cell B */}
-                <td className={`px-4 py-2.5 ${r.status_changed ? 'bg-green-50/60 dark:bg-green-900/10' : ''}`}>
-                  <div className="space-y-1.5">
-                    <div className={r.status_changed ? 'font-bold' : ''}>
-                      {statusPill(r.status_b)}
-                    </div>
-                    {r.enum_b.length > 0 || r.values_changed ? (
-                      <div className={r.values_changed ? 'ring-1 ring-green-200 dark:ring-green-800 rounded p-1' : ''}>
-                        <EnumChips values={r.enum_b} color="green" />
-                      </div>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {changes.flatMap((sc, si) =>
+            sc.fields.map((f, fi) => {
+              const even = (si + fi) % 2 === 0;
+              return (
+                <tr key={`${sc.spec_name}-${f.field}`}
+                  className={`${even ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'} border-b border-gray-50 dark:border-gray-800/60 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10`}>
+                  {fi === 0 && (
+                    <td rowSpan={sc.fields.length} className="px-4 py-2.5 font-mono text-indigo-700 dark:text-indigo-300 align-top border-r border-gray-100 dark:border-gray-800">
+                      {sc.spec_name}
+                    </td>
+                  )}
+                  <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium">{f.field}</td>
+                  <td className="px-4 py-2.5 bg-blue-50/50 dark:bg-blue-900/10">
+                    {f.value_a
+                      ? <span className="font-semibold text-gray-800 dark:text-gray-200">{f.value_a}</span>
+                      : <span className="italic text-gray-300 dark:text-gray-600">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 bg-green-50/50 dark:bg-green-900/10">
+                    {f.value_b
+                      ? <span className="font-semibold text-gray-800 dark:text-gray-200">{f.value_b}</span>
+                      : <span className="italic text-gray-300 dark:text-gray-600">—</span>}
+                  </td>
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ── 2. Status changes — compact, just status + enum count note ────────────────
+
+function StatusChangesTable({ rows, labelA, labelB }: { rows: ChangedReq[]; labelA: string; labelB: string }) {
+  if (rows.length === 0) return <p className="text-xs text-gray-400 dark:text-gray-500 py-3 px-5">None</p>;
+  return (
+    <TableShell labelA={labelA} labelB={labelB}>
+      {rows.map((r, i) => {
+        const even = i % 2 === 0;
+        return (
+          <tr key={r.signature}
+            className={`${even ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'} border-b border-gray-50 dark:border-gray-800/60 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10`}>
+            <td className="px-4 py-2.5 text-gray-300 dark:text-gray-600 font-mono">{i + 1}</td>
+            <td className="px-4 py-2.5"><ReqCell r={r} /></td>
+            <td className="px-4 py-2.5 text-gray-400 dark:text-gray-500 truncate max-w-[110px]">{r.spec_name}</td>
+            {/* Cell A — status bolded because it differs */}
+            <td className="px-4 py-2.5 bg-blue-50/50 dark:bg-blue-900/10">
+              <div className="space-y-1">
+                <div className="font-bold">{statusPill(r.status_a)}</div>
+                {r.enum_a.length > 0 && (
+                  <span className="text-gray-400 dark:text-gray-500 font-mono">
+                    {r.enum_a.length} enum value{r.enum_a.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </td>
+            {/* Cell B */}
+            <td className="px-4 py-2.5 bg-green-50/50 dark:bg-green-900/10">
+              <div className="space-y-1">
+                <div className="font-bold">{statusPill(r.status_b)}</div>
+                {r.enum_b.length > 0 && (
+                  <span className="text-gray-400 dark:text-gray-500 font-mono">
+                    {r.enum_b.length} enum value{r.enum_b.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </TableShell>
+  );
+}
+
+// ── 3. Value/enum changes — full diff with colour-coded chips ─────────────────
+
+function EnumDiffChips({ enumA, enumB, side }: { enumA: string[]; enumB: string[]; side: 'a' | 'b' }) {
+  const setA = new Set(enumA);
+  const setB = new Set(enumB);
+  const values = side === 'a' ? enumA : enumB;
+  if (values.length === 0) return <span className="italic text-gray-300 dark:text-gray-600 text-xs">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {values.map(v => {
+        const inBoth = setA.has(v) && setB.has(v);
+        const cls = inBoth
+          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'   // common → green
+          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';                  // unique → red
+        return (
+          <span key={v} className={`font-mono text-xs px-1.5 py-0.5 rounded font-medium ${cls}`}>{v}</span>
+        );
+      })}
+    </div>
+  );
+}
+
+function ValueChangesTable({ rows, labelA, labelB }: { rows: ChangedReq[]; labelA: string; labelB: string }) {
+  if (rows.length === 0) return <p className="text-xs text-gray-400 dark:text-gray-500 py-3 px-5">None</p>;
+  return (
+    <div className="space-y-1 px-2 py-1">
+      {/* Legend */}
+      <div className="flex items-center gap-4 px-2 pb-2">
+        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <span className="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800" /> Common value
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <span className="inline-block w-3 h-3 rounded bg-red-200 dark:bg-red-800" /> Unique to this cell
+        </span>
+      </div>
+      <TableShell labelA={labelA} labelB={labelB}
+        extraCols={<th className="px-4 py-2 text-left font-medium">Status</th>}>
+        {rows.map((r, i) => {
+          const even = i % 2 === 0;
+          return (
+            <tr key={r.signature}
+              className={`${even ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'} border-b border-gray-50 dark:border-gray-800/60 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10`}>
+              <td className="px-4 py-2.5 text-gray-300 dark:text-gray-600 font-mono">{i + 1}</td>
+              <td className="px-4 py-2.5"><ReqCell r={r} /></td>
+              <td className="px-4 py-2.5 text-gray-400 dark:text-gray-500 truncate max-w-[110px]">{r.spec_name}</td>
+              <td className="px-4 py-2.5">
+                {/* same status or show both */}
+                {r.status_a === r.status_b
+                  ? statusPill(r.status_a)
+                  : <span className="flex items-center gap-1">{statusPill(r.status_a)}<span className="text-gray-300">→</span>{statusPill(r.status_b)}</span>}
+              </td>
+              <td className="px-4 py-2.5 bg-blue-50/40 dark:bg-blue-900/10">
+                <EnumDiffChips enumA={r.enum_a} enumB={r.enum_b} side="a" />
+              </td>
+              <td className="px-4 py-2.5 bg-green-50/40 dark:bg-green-900/10">
+                <EnumDiffChips enumA={r.enum_a} enumB={r.enum_b} side="b" />
+              </td>
+            </tr>
+          );
+        })}
+      </TableShell>
     </div>
   );
 }
@@ -575,14 +702,14 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               {result.only_b.map(r => <ReqRow key={r.signature} r={r} side="b" />)}
             </CollapsibleSection>
 
-            {/* ── Changed (any difference) ──────────────────────────────── */}
+            {/* ── Spec metadata changes ─────────────────────────────────── */}
             <CollapsibleSection
-              title="Changed requirements"
-              count={ov.changed}
-              accent="border-orange-200 dark:border-orange-800"
-              defaultOpen={ov.changed > 0}
+              title="Specification metadata changes"
+              count={result.spec_meta_changes.length}
+              accent="border-indigo-200 dark:border-indigo-800"
+              defaultOpen={result.spec_meta_changes.length > 0}
             >
-              <ChangedTable rows={result.changed} labelA={ca.label} labelB={cb.label} />
+              <SpecMetaChangesTable changes={result.spec_meta_changes} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Status changes ────────────────────────────────────────── */}
@@ -590,8 +717,9 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               title="Status changes"
               count={ov.status_changes}
               accent="border-violet-200 dark:border-violet-800"
+              defaultOpen={ov.status_changes > 0}
             >
-              <ChangedTable rows={result.status_changes} labelA={ca.label} labelB={cb.label} />
+              <StatusChangesTable rows={result.status_changes} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Value / enum changes ──────────────────────────────────── */}
@@ -599,8 +727,9 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               title="Value / enum changes"
               count={ov.value_changes}
               accent="border-cyan-200 dark:border-cyan-800"
+              defaultOpen={ov.value_changes > 0}
             >
-              <ChangedTable rows={result.value_changes} labelA={ca.label} labelB={cb.label} />
+              <ValueChangesTable rows={result.value_changes} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Identical ─────────────────────────────────────────────── */}
