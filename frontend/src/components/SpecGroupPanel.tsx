@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import type { CellEntry, SpecMeta } from '../types/matrix';
+import type { IDSSource } from '../types/sources';
 import EntryRow from './EntryRow';
 import ApplicabilityChips from './ApplicabilityChips';
 
 interface Props {
   specName: string;
   entries: CellEntry[];
+  sources: IDSSource[];
   onStatusChange: (eid: number, status: string) => Promise<void>;
   onDeleteEntry: (eid: number) => Promise<void>;
   onDeleteAllInSpec: (specName: string, groupKeys: string[]) => Promise<void>;
@@ -30,7 +32,7 @@ function mergeApplicabilities(entries: CellEntry[]): Record<string, any>[] {
 }
 
 export default function SpecGroupPanel({
-  specName, entries, onStatusChange, onDeleteEntry, onDeleteAllInSpec, onUpdateValues, onUpdateSpecMeta,
+  specName, entries, sources, onStatusChange, onDeleteEntry, onDeleteAllInSpec, onUpdateValues, onUpdateSpecMeta,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [metaOpen, setMetaOpen] = useState(false);
@@ -41,6 +43,13 @@ export default function SpecGroupPanel({
 
   const applicabilities = mergeApplicabilities(entries);
   const groupKeys = [...new Set(entries.map(e => e.group_key))];
+
+  // Collect unique IDS sources referenced by entries in this spec
+  const sourceIds = [...new Set(entries.map(e => e.source_ids_id).filter((id): id is number => id != null))];
+  const sourceLabels = sourceIds.map(id => {
+    const s = sources.find(src => src.id === id);
+    return s ? (s.title || s.filename) : `IDS #${id}`;
+  });
 
   async function saveMeta() {
     setSaving(true);
@@ -107,7 +116,25 @@ export default function SpecGroupPanel({
           </button>
         </div>
 
-        {/* Row 2: identifier + ifc_version badges (only if present) */}
+        {/* Row 2: IDS source badge(s) */}
+        {sourceLabels.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5 ml-5">
+            {sourceLabels.map(label => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-medium"
+              >
+                <svg className="w-3 h-3 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Row 3: identifier + ifc_version badges (only if present) */}
         {(meta.identifier || meta.ifc_version) && (
           <div className="flex flex-wrap gap-1 mt-1 ml-5">
             {meta.identifier && (

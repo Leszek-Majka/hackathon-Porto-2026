@@ -175,6 +175,7 @@ export default function CellEditPanel({
                 key={g.specName}
                 specName={g.specName}
                 entries={g.entries}
+                sources={sources}
                 onStatusChange={handleStatusChange}
                 onDeleteEntry={handleDeleteEntry}
                 onDeleteAllInSpec={handleDeleteAllInSpec}
