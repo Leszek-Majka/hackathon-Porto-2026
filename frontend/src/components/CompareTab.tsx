@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { Discipline } from '../types/setup';
 import type { Phase } from '../types/project';
 import type { CellSummary } from '../types/matrix';
+import type { IDSSource } from '../types/sources';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ interface Props {
   projectId: number;
   disciplines: Discipline[];
   phases: Phase[];
+  idsSources: IDSSource[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,11 +135,6 @@ function statusPill(status: string) {
   return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cls}`}>{status}</span>;
 }
 
-function cellKey(discId: number, phaseId: number) { return `${discId}_${phaseId}`; }
-function parseKey(key: string): [number, number] {
-  const [d, p] = key.split('_').map(Number);
-  return [d, p];
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -434,10 +431,19 @@ function ValueChangesTable({ rows, labelA, labelB }: { rows: ChangedReq[]; label
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function CompareTab({ projectId, disciplines, phases }: Props) {
+// key format: "cell:discId_phaseId"  or  "ids:sourceId"
+function encodeCell(discId: number, phaseId: number) { return `cell:${discId}_${phaseId}`; }
+function encodeIds(sourceId: number)                 { return `ids:${sourceId}`; }
+function decodeKey(key: string): { kind: 'cell'; discId: number; phaseId: number } | { kind: 'ids'; sourceId: number } {
+  if (key.startsWith('ids:')) return { kind: 'ids', sourceId: Number(key.slice(4)) };
+  const [d, p] = key.slice(5).split('_').map(Number);
+  return { kind: 'cell', discId: d, phaseId: p };
+}
+
+export default function CompareTab({ projectId, disciplines, phases, idsSources }: Props) {
   const [summary, setSummary] = useState<CellSummary[]>([]);
-  const [cellA, setCellA] = useState('');
-  const [cellB, setCellB] = useState('');
+  const [selA, setSelA] = useState('');
+  const [selB, setSelB] = useState('');
   const [result, setResult] = useState<CompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -452,23 +458,25 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
       const disc  = disciplines.find(d => d.id === s.discipline_id);
       const phase = phases.find(p => p.id === s.phase_id);
       if (!disc || !phase) return null;
-      return {
-        key: cellKey(s.discipline_id, s.phase_id),
-        label: `${disc.name} × ${phase.name}`,
-        discipline_id: s.discipline_id,
-        phase_id: s.phase_id,
-      };
+      return { key: encodeCell(s.discipline_id, s.phase_id), label: `${disc.name} × ${phase.name}` };
     })
-    .filter(Boolean) as { key: string; label: string; discipline_id: number; phase_id: number }[];
+    .filter(Boolean) as { key: string; label: string }[];
 
   async function runCompare() {
-    if (!cellA || !cellB || cellA === cellB) return;
-    const [discA, phaseA] = parseKey(cellA);
-    const [discB, phaseB] = parseKey(cellB);
+    if (!selA || !selB || selA === selB) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api.compareCells(projectId, discA, phaseA, discB, phaseB);
+      const a = decodeKey(selA);
+      const b = decodeKey(selB);
+      const data = await api.compareCells(projectId, {
+        discA:   a.kind === 'cell' ? a.discId   : undefined,
+        phaseA:  a.kind === 'cell' ? a.phaseId  : undefined,
+        sourceA: a.kind === 'ids'  ? a.sourceId : undefined,
+        discB:   b.kind === 'cell' ? b.discId   : undefined,
+        phaseB:  b.kind === 'cell' ? b.phaseId  : undefined,
+        sourceB: b.kind === 'ids'  ? b.sourceId : undefined,
+      });
       setResult(data);
     } catch (e: any) {
       setError(e.message ?? 'Comparison failed');
@@ -477,49 +485,60 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
     }
   }
 
-  const canCompare = cellA && cellB && cellA !== cellB;
+  const canCompare = selA && selB && selA !== selB;
 
   return (
     <div className="space-y-6 pb-12">
 
       {/* ── Selector bar ─────────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-        {nonEmptyCells.length < 2 ? (
+        {nonEmptyCells.length === 0 && idsSources.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500">
-            At least two non-empty matrix cells are required. Add requirements to the matrix first.
+            Add requirements to the matrix or upload an IDS source first.
           </p>
         ) : (
           <div className="flex items-end gap-3 flex-wrap">
-            <div className="flex flex-col gap-1 min-w-[200px]">
-              <label className="text-xs font-medium text-blue-600 dark:text-blue-400">Cell A</label>
-              <select
-                value={cellA}
-                onChange={e => { setCellA(e.target.value); setResult(null); }}
-                className="text-sm border border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">— choose —</option>
-                {nonEmptyCells.map(c => (
-                  <option key={c.key} value={c.key} disabled={c.key === cellB}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="text-sm font-bold text-gray-400 dark:text-gray-500 pb-2">vs</div>
-
-            <div className="flex flex-col gap-1 min-w-[200px]">
-              <label className="text-xs font-medium text-green-600 dark:text-green-400">Cell B</label>
-              <select
-                value={cellB}
-                onChange={e => { setCellB(e.target.value); setResult(null); }}
-                className="text-sm border border-green-300 dark:border-green-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500"
-              >
-                <option value="">— choose —</option>
-                {nonEmptyCells.map(c => (
-                  <option key={c.key} value={c.key} disabled={c.key === cellA}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
+            {(['A', 'B'] as const).map(side => {
+              const val    = side === 'A' ? selA : selB;
+              const other  = side === 'A' ? selB : selA;
+              const setter = side === 'A' ? setSelA : setSelB;
+              const color  = side === 'A' ? 'blue' : 'green';
+              return (
+                <React.Fragment key={side}>
+                  {side === 'B' && (
+                    <div className="text-sm font-bold text-gray-400 dark:text-gray-500 pb-2">vs</div>
+                  )}
+                  <div className="flex flex-col gap-1 min-w-[210px]">
+                    <label className={`text-xs font-medium text-${color}-600 dark:text-${color}-400`}>
+                      Source {side}
+                    </label>
+                    <select
+                      value={val}
+                      onChange={e => { setter(e.target.value); setResult(null); }}
+                      className={`text-sm border border-${color}-300 dark:border-${color}-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-${color}-500`}
+                    >
+                      <option value="">— choose —</option>
+                      {nonEmptyCells.length > 0 && (
+                        <optgroup label="Matrix cells">
+                          {nonEmptyCells.map(c => (
+                            <option key={c.key} value={c.key} disabled={c.key === other}>{c.label}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {idsSources.length > 0 && (
+                        <optgroup label="IDS Sources">
+                          {idsSources.map(s => (
+                            <option key={s.id} value={encodeIds(s.id)} disabled={encodeIds(s.id) === other}>
+                              {s.title || s.filename}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+                </React.Fragment>
+              );
+            })}
             <button
               onClick={runCompare}
               disabled={!canCompare || loading}
@@ -548,7 +567,7 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
       {/* ── Empty state ───────────────────────────────────────────────────── */}
       {!result && !loading && !error && (
         <div className="flex items-center justify-center h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-          <p className="text-sm text-gray-400 dark:text-gray-500">Select two matrix cells and click Compare.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Select two sources (matrix cells or IDS files) and click Compare.</p>
         </div>
       )}
 

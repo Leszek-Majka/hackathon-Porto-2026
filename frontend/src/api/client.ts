@@ -167,8 +167,20 @@ export const api = {
     },
   },
 
-  compareCells: (projectId: number, discA: number, phaseA: number, discB: number, phaseB: number) =>
-    request<any>(`/api/projects/${projectId}/compare-cells?disc_a=${discA}&phase_a=${phaseA}&disc_b=${discB}&phase_b=${phaseB}`),
+  compareCells: (projectId: number, params: {
+    discA?: number; phaseA?: number;
+    discB?: number; phaseB?: number;
+    sourceA?: number; sourceB?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params.discA   != null) q.set('disc_a',   String(params.discA));
+    if (params.phaseA  != null) q.set('phase_a',  String(params.phaseA));
+    if (params.discB   != null) q.set('disc_b',   String(params.discB));
+    if (params.phaseB  != null) q.set('phase_b',  String(params.phaseB));
+    if (params.sourceA != null) q.set('source_a', String(params.sourceA));
+    if (params.sourceB != null) q.set('source_b', String(params.sourceB));
+    return request<any>(`/api/projects/${projectId}/compare-cells?${q}`);
+  },
 
   translations: {
     list: (projectId: number) => request<Translation[]>(`/api/projects/${projectId}/translations`),

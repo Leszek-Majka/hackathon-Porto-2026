@@ -85,6 +85,7 @@ export default function ProjectDetail() {
               projectId={projectId}
               disciplines={disciplines}
               phases={phases}
+              idsSources={sources}
             />
           )}
 
