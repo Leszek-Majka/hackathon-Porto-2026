@@ -4,6 +4,7 @@ import StatusPill from './StatusPill';
 
 interface Props {
   entry: CellEntry;
+  sourceLabel?: string;
   onStatusChange: (eid: number, status: string) => Promise<void>;
   onDelete: (eid: number) => Promise<void>;
   onUpdateValues?: (eid: number, values: string[]) => Promise<void>;
@@ -56,7 +57,7 @@ function getEnumValues(req: any): string[] | null {
   return null;
 }
 
-export default function EntryRow({ entry, onStatusChange, onDelete, onUpdateValues }: Props) {
+export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete, onUpdateValues }: Props) {
   const [enumOpen, setEnumOpen] = useState(false);
   const req = entry.requirement;
   const reqType = req?.type ?? entry.entry_type;
@@ -94,6 +95,13 @@ export default function EntryRow({ entry, onStatusChange, onDelete, onUpdateValu
           {reqLabel(req)}
         </span>
 
+        {/* IDS source label */}
+        {sourceLabel && (
+          <span className="flex-shrink-0 text-xs text-indigo-500 dark:text-indigo-400 font-medium truncate max-w-[90px]" title={sourceLabel}>
+            {sourceLabel}
+          </span>
+        )}
+
         {/* Value hint */}
         {isMultiEnum && (
           <span className="text-xs font-mono text-gray-400 dark:text-gray-500 flex-shrink-0">
@@ -124,24 +132,35 @@ export default function EntryRow({ entry, onStatusChange, onDelete, onUpdateValu
 
       {/* Enum values expanded */}
       {hasEnum && enumOpen && (
-        <div className="ml-8 mb-1 border-l border-blue-100 dark:border-blue-900/40 pl-2 flex flex-wrap gap-1">
-          {enumValues!.map(v => (
-            <span
-              key={v}
-              className="inline-flex items-center gap-0.5 font-mono text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-            >
-              {v}
-              {onUpdateValues && (
-                <button
-                  onClick={() => onUpdateValues(entry.id, enumValues!.filter(x => x !== v))}
-                  className="ml-0.5 text-blue-300 hover:text-red-500 dark:text-blue-600 dark:hover:text-red-400 transition-colors leading-none"
-                  title={`Remove "${v}"`}
-                >
-                  ×
-                </button>
-              )}
-            </span>
-          ))}
+        <div className="ml-8 mb-1 border-l border-blue-100 dark:border-blue-900/40 pl-2 space-y-1">
+          <div className="flex flex-wrap gap-1">
+            {enumValues!.map(v => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-0.5 font-mono text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+              >
+                {v}
+                {onUpdateValues && (
+                  <button
+                    onClick={() => onUpdateValues(entry.id, enumValues!.filter(x => x !== v))}
+                    className="ml-0.5 text-blue-300 hover:text-red-500 dark:text-blue-600 dark:hover:text-red-400 transition-colors leading-none"
+                    title={`Remove "${v}"`}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+          {sourceLabel && (
+            <div className="flex items-center gap-1 text-xs text-indigo-400 dark:text-indigo-500">
+              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span className="truncate">{sourceLabel}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

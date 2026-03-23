@@ -220,15 +220,20 @@ export default function SpecGroupPanel({
       {/* ── Entry rows ── */}
       {!collapsed && (
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {entries.map(entry => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              onStatusChange={onStatusChange}
-              onDelete={onDeleteEntry}
-              onUpdateValues={onUpdateValues}
-            />
-          ))}
+          {entries.map(entry => {
+            const src = sources.find(s => s.id === entry.source_ids_id);
+            const label = src ? (src.title || src.filename) : undefined;
+            return (
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                sourceLabel={label}
+                onStatusChange={onStatusChange}
+                onDelete={onDeleteEntry}
+                onUpdateValues={onUpdateValues}
+              />
+            );
+          })}
         </div>
       )}
     </div>
