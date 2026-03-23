@@ -61,6 +61,9 @@ class PhaseResponse(BaseModel):
     name: str
     color: str
     order_index: int
+    code: Optional[str] = None
+    loin: Optional[int] = None
+    gate: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -144,6 +147,88 @@ class TranslationResponse(BaseModel):
 class LanguageUpdate(BaseModel):
     code: str
     enabled: bool
+
+
+# Discipline schemas
+class DisciplineCreate(BaseModel):
+    name: str
+    code: str
+    color: Optional[str] = "#3b9eff"
+    order_index: Optional[int] = 0
+
+
+class DisciplineUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    color: Optional[str] = None
+    order_index: Optional[int] = None
+
+
+class DisciplineResponse(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    code: Optional[str] = None
+    abbreviation: Optional[str] = None
+    color: str
+    order_index: int
+
+    class Config:
+        from_attributes = True
+
+
+# LCA schemas
+class LCAEntryCreate(BaseModel):
+    phase_id: Optional[int] = None
+    discipline_id: Optional[int] = None
+    ifc_entity: str = ""
+    element_name: str = ""
+    quantity_value: float = 0.0
+    quantity_unit: str = ""
+    material: str = ""
+    bsdd_uri: str = ""
+    gwp_factor: float = 0.0
+    mass_kg: float = 0.0
+
+
+class LCAEntryResponse(BaseModel):
+    id: int
+    project_id: int
+    phase_id: Optional[int] = None
+    discipline_id: Optional[int] = None
+    ifc_entity: str
+    element_name: str
+    quantity_value: float
+    quantity_unit: str
+    material: str
+    bsdd_uri: str
+    gwp_factor: float
+    mass_kg: float
+    gwp_a1a3: float
+    gwp_a4a5: Optional[float] = None
+    gwp_b1b7: Optional[float] = None
+    gwp_c1c4: Optional[float] = None
+    gwp_d: Optional[float] = None
+    en15978_scope: str
+    confidence: str
+    flag: str
+    stage_check: str = "{}"
+
+    class Config:
+        from_attributes = True
+
+
+class LCASummary(BaseModel):
+    ils17_mass_kg: float
+    ils18_gwp_a1a3: float
+    ils19_wlc_estimate: float
+    confidence: str
+    loin_level: int
+    en15978_stages: Dict[str, Optional[float]]
+    by_discipline: List[Dict[str, Any]]
+    by_discipline_stages: List[Dict[str, Any]]
+    by_riba_phase: List[Dict[str, Any]]
+    top_contributor: Optional[Dict[str, Any]] = None
 
 
 ProjectDetail.model_rebuild()

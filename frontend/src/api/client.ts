@@ -5,6 +5,8 @@ import type { Project, Phase } from '../types/project';
 import type { ValidationRun, IFCFileInfo, CellValidation } from '../types/validation';
 import type { DashboardData } from '../types/dashboard';
 import type { Translation, ProjectLanguage } from '../types/translations';
+import type { LCAEntry, LCASummary, LCACheckResult, LCACheckRunSummary } from '../types/lca';
+import type { LcaCostData, LcaCostParams } from '../types/lcaCost';
 
 const BASE = 'http://localhost:8000';
 
@@ -64,6 +66,8 @@ export const api = {
       }),
     delete: (projectId: number, did: number) =>
       request<{ ok: boolean }>(`/api/projects/${projectId}/disciplines/${did}`, { method: 'DELETE' }),
+    seed: (projectId: number) =>
+      request<Discipline[]>(`/api/projects/${projectId}/disciplines/seed`, { method: 'POST' }),
   },
 
   sources: {
@@ -230,5 +234,67 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       }),
+  },
+
+  lca: {
+    list: (projectId: number, phaseId?: number, disciplineId?: number) => {
+      const params = new URLSearchParams();
+      if (phaseId) params.set('phase_id', String(phaseId));
+      if (disciplineId) params.set('discipline_id', String(disciplineId));
+      const qs = params.toString();
+      return request<LCAEntry[]>(`/api/projects/${projectId}/lca${qs ? `?${qs}` : ''}`);
+    },
+    create: (projectId: number, data: Partial<LCAEntry>) =>
+      request<LCAEntry>(`/api/projects/${projectId}/lca`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    bulkCreate: (projectId: number, entries: Partial<LCAEntry>[]) =>
+      request<{ ok: boolean; count: number }>(`/api/projects/${projectId}/lca/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entries),
+      }),
+    delete: (entryId: number) => request<{ ok: boolean }>(`/api/lca/${entryId}`, { method: 'DELETE' }),
+    summary: (projectId: number, phaseId?: number, disciplineIds?: number[]) => {
+      const params = new URLSearchParams();
+      if (phaseId) params.set('phase_id', String(phaseId));
+      if (disciplineIds?.length) params.set('discipline_ids', disciplineIds.join(','));
+      const qs = params.toString();
+      return request<LCASummary>(`/api/projects/${projectId}/lca/summary${qs ? `?${qs}` : ''}`);
+    },
+    seedSample: (projectId: number) =>
+      request<{ ok: boolean; count: number }>(`/api/projects/${projectId}/lca/seed-sample`, { method: 'POST' }),
+    validate: (projectId: number) =>
+      request<{ ok: boolean; results: Array<{ id: number; flag: string }> }>(
+        `/api/projects/${projectId}/lca/validate`,
+        { method: 'POST' }
+      ),
+    seedRibaPhases: (projectId: number) =>
+      request<Phase[]>(`/api/projects/${projectId}/phases/seed-riba`, { method: 'POST' }),
+  },
+
+  lcaCost: {
+    get: (projectId: number) => request<LcaCostData>(`/api/projects/${projectId}/lca-cost`),
+    compute: (projectId: number) => request<LcaCostData>(
+      `/api/projects/${projectId}/lca-cost/compute`, { method: 'POST' }),
+    updateParams: (projectId: number, params: LcaCostParams) => request<LcaCostData>(
+      `/api/projects/${projectId}/lca-cost/params`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      }),
+  },
+
+  lcaCheck: {
+    run: (projectId: number, phaseId: number) =>
+      request<LCACheckResult>(`/api/projects/${projectId}/lca-check/${phaseId}`, { method: 'POST' }),
+    list: (projectId: number) =>
+      request<LCACheckRunSummary[]>(`/api/projects/${projectId}/lca-checks`),
+    get: (projectId: number, checkId: number) =>
+      request<LCACheckResult>(`/api/projects/${projectId}/lca-checks/${checkId}`),
+    delete: (projectId: number, checkId: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/lca-checks/${checkId}`, { method: 'DELETE' }),
   },
 };

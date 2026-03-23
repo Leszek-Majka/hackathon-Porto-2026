@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, Float, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -24,6 +24,9 @@ class Project(Base):
     sources = relationship("IDSSource", back_populates="project", cascade="all, delete-orphan")
     matrix_cells = relationship("MatrixCell", back_populates="project", cascade="all, delete-orphan")
     cell_validations = relationship("CellValidation", back_populates="project", cascade="all, delete-orphan")
+    lca_entries = relationship("LCAEntry", back_populates="project", cascade="all, delete-orphan")
+    lca_check_runs = relationship("LCACheckRun", back_populates="project", cascade="all, delete-orphan")
+    lca_cost_results = relationship("LcaCostResult", back_populates="project", cascade="all, delete-orphan")
 
 
 class IDSFile(Base):
@@ -47,6 +50,9 @@ class Phase(Base):
     name = Column(String, nullable=False)
     color = Column(String, default="#3B82F6")
     order_index = Column(Integer, default=0)
+    code = Column(String, nullable=True)
+    loin = Column(Integer, nullable=True)
+    gate = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="phases")
@@ -54,6 +60,8 @@ class Phase(Base):
     validation_runs = relationship("ValidationRun", back_populates="phase")
     matrix_cells = relationship("MatrixCell", back_populates="phase", cascade="all, delete-orphan")
     cell_validations = relationship("CellValidation", back_populates="phase")
+    lca_entries = relationship("LCAEntry", back_populates="phase")
+    lca_check_runs = relationship("LCACheckRun", back_populates="phase")
 
 
 class PhaseMatrix(Base):
@@ -137,6 +145,7 @@ class Discipline(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     name = Column(String, nullable=False)
     abbreviation = Column(String, default="")
+    code = Column(String, nullable=True)
     color = Column(String, default="#6366F1")
     order_index = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -144,6 +153,7 @@ class Discipline(Base):
     project = relationship("Project", back_populates="disciplines")
     matrix_cells = relationship("MatrixCell", back_populates="discipline", cascade="all, delete-orphan")
     cell_validations = relationship("CellValidation", back_populates="discipline")
+    lca_entries = relationship("LCAEntry", back_populates="discipline")
 
 
 class IDSSource(Base):
@@ -220,3 +230,72 @@ class CellValidation(Base):
     ifc_file = relationship("IFCFile", back_populates="cell_validations")
     discipline = relationship("Discipline", back_populates="cell_validations")
     phase = relationship("Phase", back_populates="cell_validations")
+
+
+class LCACheckRun(Base):
+    __tablename__ = "lca_check_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    phase_id = Column(Integer, ForeignKey("phases.id"), nullable=False)
+    run_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String, default="complete")  # running | complete | error
+    total_elements = Column(Integer, default=0)
+    pass_count = Column(Integer, default=0)
+    warn_count = Column(Integer, default=0)
+    fail_count = Column(Integer, default=0)
+    skip_count = Column(Integer, default=0)
+    total_gwp_a1a3 = Column(Float, default=0.0)
+    total_gwp_wlc = Column(Float, default=0.0)
+    total_mass_kg = Column(Float, default=0.0)
+    loin_level = Column(Integer, default=2)
+    confidence = Column(String, default="order_of_magnitude")
+    results_json = Column(Text, default="{}")  # JSON-serialized LCACheckResult
+
+    project = relationship("Project", back_populates="lca_check_runs")
+    phase = relationship("Phase", back_populates="lca_check_runs")
+
+
+class LCAEntry(Base):
+    __tablename__ = "lca_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    phase_id = Column(Integer, ForeignKey("phases.id"), nullable=True)
+    discipline_id = Column(Integer, ForeignKey("disciplines.id"), nullable=True)
+    ifc_entity = Column(String, default="")
+    element_name = Column(String, default="")
+    quantity_value = Column(Float, default=0.0)
+    quantity_unit = Column(String, default="")
+    material = Column(String, default="")
+    bsdd_uri = Column(String, default="")
+    gwp_factor = Column(Float, default=0.0)
+    mass_kg = Column(Float, default=0.0)
+    gwp_a1a3 = Column(Float, default=0.0)
+    gwp_a4a5 = Column(Float, nullable=True)
+    gwp_b1b7 = Column(Float, nullable=True)
+    gwp_c1c4 = Column(Float, nullable=True)
+    gwp_d = Column(Float, nullable=True)
+    en15978_scope = Column(String, default="")
+    confidence = Column(String, default="order_of_magnitude")
+    flag = Column(String, default="ok")  # ok | warn | error
+    stage_check = Column(Text, default="{}")  # JSON dict of stage validation
+
+    project = relationship("Project", back_populates="lca_entries")
+    phase = relationship("Phase", back_populates="lca_entries")
+    discipline = relationship("Discipline", back_populates="lca_entries")
+
+
+class LcaCostResult(Base):
+    __tablename__ = "lca_cost_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    ifc_file_id = Column(Integer, ForeignKey("ifc_files.id"), nullable=True)
+    params_json = Column(Text, default="{}")
+    assemblies_json = Column(Text, default="[]")
+    projections_json = Column(Text, default="[]")
+    computed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("Project", back_populates="lca_cost_results")
+    ifc_file = relationship("IFCFile")

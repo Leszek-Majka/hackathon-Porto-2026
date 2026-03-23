@@ -11,8 +11,10 @@ import MatrixTab from './MatrixTab';
 import CompareTab from './CompareTab';
 import ValidateTab from './ValidateTab';
 import ExportTab from './ExportTab';
+import LCADashboard from './lca/LCADashboard';
+import LcaCostTab from './LcaCostTab';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export' | 'lca' | 'lca-cost';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -104,6 +106,22 @@ export default function ProjectDetail() {
               disciplines={disciplines}
               phases={phases}
             />
+          )}
+
+          {tab === 'lca' && (
+            <div>
+              <div className="mb-5">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Carbon / LCA Dashboard</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  EN 15978 lifecycle carbon assessment with RIBA phase mapping.
+                </p>
+              </div>
+              <LCADashboard projectId={projectId} phases={phases} onPhasesChanged={handleSetupChanged} />
+            </div>
+          )}
+
+          {tab === 'lca-cost' && (
+            <LcaCostTab projectId={projectId} />
           )}
         </div>
       </div>

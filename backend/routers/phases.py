@@ -24,6 +24,9 @@ def _phase_to_dict(phase: Phase) -> dict:
         "name": phase.name,
         "color": phase.color,
         "order_index": phase.order_index,
+        "code": phase.code,
+        "loin": phase.loin,
+        "gate": phase.gate,
         "created_at": phase.created_at.isoformat(),
     }
 

@@ -46,7 +46,7 @@ class SpecMetaUpdate(BaseModel):
     ifc_version: str = ""
 
 
-def _get_value_list(req: dict) -> list | None:
+def _get_value_list(req: dict) -> Optional[list]:
     """Extract enum values from a requirement's value constraint. None = no value constraint."""
     v = req.get("value")
     if not v:
@@ -59,7 +59,7 @@ def _get_value_list(req: dict) -> list | None:
     return None  # pattern / restriction — not mergeable
 
 
-def _merge_req_values(existing: dict, incoming: dict) -> dict | None:
+def _merge_req_values(existing: dict, incoming: dict) -> Optional[dict]:
     """
     Merge two requirement dicts that share the same key.
     Returns the merged dict, or None if they are identical (skip the incoming).

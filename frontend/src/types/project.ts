@@ -6,6 +6,9 @@ export interface Phase {
   name: string;
   color: string;
   order_index: number;
+  code?: string | null;
+  loin?: number | null;
+  gate?: string | null;
   created_at: string;
 }
 

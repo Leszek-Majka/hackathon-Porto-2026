@@ -3,6 +3,7 @@ export interface Discipline {
   project_id: number;
   name: string;
   abbreviation: string;
+  code?: string;
   color: string;
   order_index: number;
 }

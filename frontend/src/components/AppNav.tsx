@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export' | 'lca' | 'lca-cost';
 
 interface Props {
   activeTab: AppTab;
@@ -17,6 +17,8 @@ const TABS: { id: AppTab; label: string }[] = [
   { id: 'compare',  label: 'Compare' },
   { id: 'validate', label: 'Validate' },
   { id: 'export',   label: 'Export' },
+  { id: 'lca',      label: 'Carbon / LCA' },
+  { id: 'lca-cost', label: 'LCA Cost' },
 ];
 
 export default function AppNav({ activeTab, onTabChange, projectName, projectDescription }: Props) {

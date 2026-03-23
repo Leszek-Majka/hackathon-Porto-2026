@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models  # noqa: F401 — ensure models are registered
 
-from routers import projects, phases, sources, setup as setup_router, matrix, export, validation, dashboard, translations, compare, cell_validation
+from routers import projects, phases, sources, setup as setup_router, matrix, export, validation, dashboard, translations, compare, cell_validation, disciplines, lca, lca_check, lca_cost
 
 EXPORTS_DIR = os.path.join(os.path.dirname(__file__), "exports")
 
@@ -56,6 +56,10 @@ app.include_router(dashboard.router)
 app.include_router(translations.router)
 app.include_router(compare.router)
 app.include_router(cell_validation.router)
+app.include_router(disciplines.router)
+app.include_router(lca.router)
+app.include_router(lca_check.router)
+app.include_router(lca_cost.router)
 
 
 @app.get("/api/health")
