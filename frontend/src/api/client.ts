@@ -2,7 +2,7 @@ import type { Discipline } from '../types/setup';
 import type { IDSSource } from '../types/sources';
 import type { CellSummary, CellData, CellHeader } from '../types/matrix';
 import type { Project, Phase } from '../types/project';
-import type { ValidationRun, IFCFileInfo } from '../types/validation';
+import type { ValidationRun, IFCFileInfo, CellValidation } from '../types/validation';
 import type { DashboardData } from '../types/dashboard';
 import type { Translation, ProjectLanguage } from '../types/translations';
 
@@ -180,6 +180,37 @@ export const api = {
     if (params.sourceA != null) q.set('source_a', String(params.sourceA));
     if (params.sourceB != null) q.set('source_b', String(params.sourceB));
     return request<any>(`/api/projects/${projectId}/compare-cells?${q}`);
+  },
+
+  cellValidation: {
+    list: (projectId: number, ifcFileId?: number) => {
+      const q = ifcFileId ? `?ifc_file_id=${ifcFileId}` : '';
+      return request<CellValidation[]>(`/api/projects/${projectId}/cell-validations${q}`);
+    },
+    get: (projectId: number, vid: number) =>
+      request<CellValidation>(`/api/projects/${projectId}/cell-validations/${vid}`),
+    start: (projectId: number, body: { ifc_file_id: number; discipline_id: number; phase_id: number }) =>
+      request<CellValidation>(`/api/projects/${projectId}/cell-validations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    delete: (projectId: number, vid: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/cell-validations/${vid}`, { method: 'DELETE' }),
+    bcfUrl: (projectId: number, vid: number) =>
+      `${BASE}/api/projects/${projectId}/cell-validations/${vid}/bcf`,
+  },
+
+  ifcFiles: {
+    list: (projectId: number) =>
+      request<IFCFileInfo[]>(`/api/projects/${projectId}/ifc-files`),
+    upload: (projectId: number, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return request<IFCFileInfo>(`/api/projects/${projectId}/upload-ifc`, { method: 'POST', body: form });
+    },
+    delete: (projectId: number, fid: number) =>
+      request<{ ok: boolean }>(`/api/projects/${projectId}/ifc-files/${fid}`, { method: 'DELETE' }),
   },
 
   translations: {

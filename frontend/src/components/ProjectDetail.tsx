@@ -9,9 +9,10 @@ import SetupTab from './SetupTab';
 import SourcesTab from './SourcesTab';
 import MatrixTab from './MatrixTab';
 import CompareTab from './CompareTab';
+import ValidateTab from './ValidateTab';
 import ExportTab from './ExportTab';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +87,14 @@ export default function ProjectDetail() {
               disciplines={disciplines}
               phases={phases}
               idsSources={sources}
+            />
+          )}
+
+          {tab === 'validate' && (
+            <ValidateTab
+              projectId={projectId}
+              disciplines={disciplines}
+              phases={phases}
             />
           )}
 

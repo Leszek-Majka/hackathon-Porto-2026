@@ -40,3 +40,30 @@ export interface IFCFileInfo {
   element_count: number;
   uploaded_at: string;
 }
+
+export interface CellValidationSummary {
+  total_elements: number;
+  passing_elements: number;
+  failing_elements: number;
+  pass_rate: number;
+}
+
+export interface CellSpecResult {
+  spec_name: string;
+  elements_checked: number;
+  elements_passing: number;
+  failures: FailingElement[];
+}
+
+export interface CellValidation {
+  id: number;
+  project_id: number;
+  ifc_file_id: number;
+  discipline_id: number;
+  phase_id: number;
+  status: 'pending' | 'running' | 'complete' | 'error';
+  run_at: string;
+  summary: CellValidationSummary;
+  error_message: string;
+  specs?: CellSpecResult[];
+}

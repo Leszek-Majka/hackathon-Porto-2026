@@ -181,6 +181,91 @@ def validate_ifc(
     return {"summary": summary, "specs": specs_results}
 
 
+def validate_ifc_from_entries(ifc_path: str, cell_entries: list) -> dict:
+    """
+    Validate IFC file against a list of cell entries (from MatrixCell).
+    cell_entries: list of dicts with keys: spec_name, applicability (list), requirement (dict), status
+    Returns structured result dict.
+    """
+    if not IFC_AVAILABLE:
+        return {"error": "ifcopenshell not installed", "specs": []}
+
+    try:
+        ifc_file = ifcopenshell.open(ifc_path)
+    except Exception as e:
+        return {"error": str(e), "specs": []}
+
+    # Group entries by spec_name
+    specs_map: Dict[str, Any] = {}
+    for entry in cell_entries:
+        spec_name = entry.get("spec_name", "")
+        status = entry.get("status", "required")
+        if status == "prohibited":
+            continue
+        req = entry.get("requirement", {})
+        app_list = entry.get("applicability", [])
+        app = app_list[0] if app_list else {}
+        if spec_name not in specs_map:
+            specs_map[spec_name] = {"applicability": app, "requirements": []}
+        specs_map[spec_name]["requirements"].append({"req": req, "status": status})
+
+    specs_results = []
+    total_elements = 0
+    total_passing = 0
+    total_failing = 0
+
+    for spec_name, spec_data in specs_map.items():
+        applicability = spec_data["applicability"]
+        requirements = spec_data["requirements"]
+
+        elements = _get_elements_for_spec(ifc_file, applicability)
+        elements_checked = len(elements)
+        total_elements += elements_checked
+
+        failures = []
+        passing_count = 0
+
+        for element in elements:
+            failed_reqs = []
+            for req_entry in requirements:
+                req = req_entry["req"]
+                status = req_entry["status"]
+                if status != "required":
+                    continue
+                passed = _check_requirement(element, req)
+                if not passed:
+                    failed_reqs.append(_req_label(req))
+
+            if failed_reqs:
+                failures.append({
+                    "element_id": f"#{element.id()}",
+                    "element_type": element.is_a(),
+                    "element_name": getattr(element, "Name", "") or "",
+                    "global_id": getattr(element, "GlobalId", "") or "",
+                    "failed_requirements": failed_reqs,
+                })
+                total_failing += 1
+            else:
+                passing_count += 1
+                total_passing += 1
+
+        specs_results.append({
+            "spec_name": spec_name,
+            "elements_checked": elements_checked,
+            "elements_passing": passing_count,
+            "failures": failures,
+        })
+
+    pass_rate = round(total_passing / total_elements, 4) if total_elements > 0 else 1.0
+    summary = {
+        "total_elements": total_elements,
+        "passing_elements": total_passing,
+        "failing_elements": total_failing,
+        "pass_rate": pass_rate,
+    }
+    return {"summary": summary, "specs": specs_results}
+
+
 def _req_label(req: Dict) -> str:
     req_type = req.get("type", "")
     if req_type == "attribute":

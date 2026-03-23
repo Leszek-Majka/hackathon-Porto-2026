@@ -2,7 +2,7 @@
 import asyncio
 import json
 import os
-import shutil
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -25,6 +25,17 @@ def _uploads_path(project_id: int) -> str:
     return path
 
 
+def _ifc_to_dict(ifc: IFCFile) -> dict:
+    return {
+        "id": ifc.id,
+        "project_id": ifc.project_id,
+        "filename": ifc.filename,
+        "ifc_schema": ifc.ifc_schema,
+        "element_count": ifc.element_count,
+        "uploaded_at": ifc.uploaded_at.isoformat(),
+    }
+
+
 # ── IFC Upload ────────────────────────────────────────────────────────────────
 
 @router.post("/{project_id}/upload-ifc", response_model=None)
@@ -38,55 +49,50 @@ async def upload_ifc(project_id: int, file: UploadFile = File(...), db: Session 
         raise HTTPException(status_code=413, detail="File too large (max 500 MB)")
 
     dest_dir = _uploads_path(project_id)
-    dest_path = os.path.join(dest_dir, "model.ifc")
+    safe_name = f"{uuid.uuid4().hex[:8]}_{file.filename or 'model.ifc'}"
+    dest_path = os.path.join(dest_dir, safe_name)
     with open(dest_path, "wb") as f:
         f.write(content)
 
     info = get_ifc_info(dest_path)
+    ifc = IFCFile(
+        project_id=project_id,
+        filename=file.filename or "model.ifc",
+        file_path=dest_path,
+        ifc_schema=info.get("ifc_schema", ""),
+        element_count=info.get("element_count", 0),
+    )
+    db.add(ifc)
+    db.commit()
+    db.refresh(ifc)
 
-    if project.ifc_file:
-        project.ifc_file.filename = file.filename or "model.ifc"
-        project.ifc_file.file_path = dest_path
-        project.ifc_file.ifc_schema = info.get("ifc_schema", "")
-        project.ifc_file.element_count = info.get("element_count", 0)
-        db.commit()
-        db.refresh(project.ifc_file)
-        ifc = project.ifc_file
-    else:
-        ifc = IFCFile(
-            project_id=project_id,
-            filename=file.filename or "model.ifc",
-            file_path=dest_path,
-            ifc_schema=info.get("ifc_schema", ""),
-            element_count=info.get("element_count", 0),
-        )
-        db.add(ifc)
-        db.commit()
-        db.refresh(ifc)
+    return _ifc_to_dict(ifc)
 
-    return {
-        "id": ifc.id,
-        "project_id": ifc.project_id,
-        "filename": ifc.filename,
-        "ifc_schema": ifc.ifc_schema,
-        "element_count": ifc.element_count,
-        "uploaded_at": ifc.uploaded_at.isoformat(),
-    }
+
+@router.get("/{project_id}/ifc-files", response_model=None)
+def list_ifc_files(project_id: int, db: Session = Depends(get_db)):
+    files = db.query(IFCFile).filter(IFCFile.project_id == project_id).order_by(IFCFile.uploaded_at.desc()).all()
+    return [_ifc_to_dict(f) for f in files]
+
+
+@router.delete("/{project_id}/ifc-files/{fid}", response_model=None)
+def delete_ifc_file(project_id: int, fid: int, db: Session = Depends(get_db)):
+    ifc = db.query(IFCFile).filter(IFCFile.id == fid, IFCFile.project_id == project_id).first()
+    if not ifc:
+        raise HTTPException(404, "IFC file not found")
+    if os.path.exists(ifc.file_path):
+        os.remove(ifc.file_path)
+    db.delete(ifc)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/{project_id}/ifc-info", response_model=None)
 def get_ifc_info_route(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project or not project.ifc_file:
+    ifc = db.query(IFCFile).filter(IFCFile.project_id == project_id).order_by(IFCFile.uploaded_at.desc()).first()
+    if not ifc:
         raise HTTPException(status_code=404, detail="No IFC file uploaded")
-    ifc = project.ifc_file
-    return {
-        "id": ifc.id,
-        "filename": ifc.filename,
-        "ifc_schema": ifc.ifc_schema,
-        "element_count": ifc.element_count,
-        "uploaded_at": ifc.uploaded_at.isoformat(),
-    }
+    return _ifc_to_dict(ifc)
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -127,7 +133,8 @@ async def start_validation(project_id: int, phase_id: int, db: Session = Depends
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not project.ifc_file:
+    ifc_file = db.query(IFCFile).filter(IFCFile.project_id == project_id).order_by(IFCFile.uploaded_at.desc()).first()
+    if not ifc_file:
         raise HTTPException(status_code=400, detail="No IFC file uploaded")
     if not project.ids_file:
         raise HTTPException(status_code=400, detail="No IDS file uploaded")
@@ -152,14 +159,14 @@ async def start_validation(project_id: int, phase_id: int, db: Session = Depends
     run = ValidationRun(
         project_id=project_id,
         phase_id=phase_id,
-        ifc_file_id=project.ifc_file.id,
+        ifc_file_id=ifc_file.id,
         status="pending",
     )
     db.add(run)
     db.commit()
     db.refresh(run)
 
-    asyncio.create_task(_run_validation_bg(run.id, project.ifc_file.file_path, parsed_ids, phase_matrix))
+    asyncio.create_task(_run_validation_bg(run.id, ifc_file.file_path, parsed_ids, phase_matrix))
 
     return {"run_id": run.id, "status": run.status}
 

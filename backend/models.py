@@ -14,7 +14,7 @@ class Project(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     ids_file = relationship("IDSFile", back_populates="project", uselist=False, cascade="all, delete-orphan")
-    ifc_file = relationship("IFCFile", back_populates="project", uselist=False, cascade="all, delete-orphan")
+    ifc_files = relationship("IFCFile", back_populates="project", cascade="all, delete-orphan", order_by="IFCFile.uploaded_at")
     phases = relationship("Phase", back_populates="project", cascade="all, delete-orphan", order_by="Phase.order_index")
     matrix_entries = relationship("PhaseMatrix", back_populates="project", cascade="all, delete-orphan")
     validation_runs = relationship("ValidationRun", back_populates="project", cascade="all, delete-orphan")
@@ -23,6 +23,7 @@ class Project(Base):
     disciplines = relationship("Discipline", back_populates="project", cascade="all, delete-orphan", order_by="Discipline.order_index")
     sources = relationship("IDSSource", back_populates="project", cascade="all, delete-orphan")
     matrix_cells = relationship("MatrixCell", back_populates="project", cascade="all, delete-orphan")
+    cell_validations = relationship("CellValidation", back_populates="project", cascade="all, delete-orphan")
 
 
 class IDSFile(Base):
@@ -52,6 +53,7 @@ class Phase(Base):
     matrix_entries = relationship("PhaseMatrix", back_populates="phase", cascade="all, delete-orphan")
     validation_runs = relationship("ValidationRun", back_populates="phase")
     matrix_cells = relationship("MatrixCell", back_populates="phase", cascade="all, delete-orphan")
+    cell_validations = relationship("CellValidation", back_populates="phase")
 
 
 class PhaseMatrix(Base):
@@ -79,8 +81,9 @@ class IFCFile(Base):
     element_count = Column(Integer, default=0)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    project = relationship("Project", back_populates="ifc_file")
+    project = relationship("Project", back_populates="ifc_files")
     validation_runs = relationship("ValidationRun", back_populates="ifc_file", cascade="all, delete-orphan")
+    cell_validations = relationship("CellValidation", back_populates="ifc_file", cascade="all, delete-orphan")
 
 
 class ValidationRun(Base):
@@ -140,6 +143,7 @@ class Discipline(Base):
 
     project = relationship("Project", back_populates="disciplines")
     matrix_cells = relationship("MatrixCell", back_populates="discipline", cascade="all, delete-orphan")
+    cell_validations = relationship("CellValidation", back_populates="discipline")
 
 
 class IDSSource(Base):
@@ -196,3 +200,23 @@ class CellEntry(Base):
 
     cell = relationship("MatrixCell", back_populates="entries")
     source_ids = relationship("IDSSource", back_populates="cell_entries")
+
+
+class CellValidation(Base):
+    __tablename__ = "cell_validations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    ifc_file_id = Column(Integer, ForeignKey("ifc_files.id"), nullable=False)
+    discipline_id = Column(Integer, ForeignKey("disciplines.id"), nullable=False)
+    phase_id = Column(Integer, ForeignKey("phases.id"), nullable=False)
+    status = Column(String, default="pending")  # pending|running|complete|error
+    run_at = Column(DateTime(timezone=True), server_default=func.now())
+    summary_json = Column(Text, default="{}")
+    results_json = Column(Text, default="[]")
+    error_message = Column(Text, default="")
+
+    project = relationship("Project", back_populates="cell_validations")
+    ifc_file = relationship("IFCFile", back_populates="cell_validations")
+    discipline = relationship("Discipline", back_populates="cell_validations")
+    phase = relationship("Phase", back_populates="cell_validations")

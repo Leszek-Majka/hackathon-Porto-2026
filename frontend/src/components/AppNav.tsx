@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'export';
+type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export';
 
 interface Props {
   activeTab: AppTab;
@@ -11,11 +11,12 @@ interface Props {
 }
 
 const TABS: { id: AppTab; label: string }[] = [
-  { id: 'setup',   label: 'Setup' },
-  { id: 'sources', label: 'IDS Sources' },
-  { id: 'matrix',  label: 'Matrix' },
-  { id: 'compare', label: 'Compare' },
-  { id: 'export',  label: 'Export' },
+  { id: 'setup',    label: 'Setup' },
+  { id: 'sources',  label: 'IDS Sources' },
+  { id: 'matrix',   label: 'Matrix' },
+  { id: 'compare',  label: 'Compare' },
+  { id: 'validate', label: 'Validate' },
+  { id: 'export',   label: 'Export' },
 ];
 
 export default function AppNav({ activeTab, onTabChange, projectName, projectDescription }: Props) {
