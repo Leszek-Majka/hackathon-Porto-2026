@@ -4,15 +4,13 @@ import { useProject } from '../hooks/useProject';
 import { useSetup } from '../hooks/useSetup';
 import { useSources } from '../hooks/useSources';
 import { DragProvider } from '../dnd/DragContext';
-import AppNav from './AppNav';
+import AppNav, { type AppTab } from './AppNav';
 import SetupTab from './SetupTab';
 import SourcesTab from './SourcesTab';
 import MatrixTab from './MatrixTab';
 import CompareTab from './CompareTab';
 import ValidateTab from './ValidateTab';
 import ExportTab from './ExportTab';
-
-type AppTab = 'setup' | 'sources' | 'matrix' | 'compare' | 'validate' | 'export';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();

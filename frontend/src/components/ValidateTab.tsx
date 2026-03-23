@@ -108,24 +108,24 @@ function IFCFilesPanel({ projectId, selectedId, onSelect, onUploaded }: {
           <div
             key={f.id}
             onClick={() => onSelect(f.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${
+            className={`flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${
               selectedId === f.id
                 ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
                 : 'border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50'
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{f.filename}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+              <p className="text-xs font-medium text-gray-800 dark:text-gray-200 break-all leading-5">{f.filename}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-mono break-words">
                 {f.ifc_schema} · {f.element_count} elements
               </p>
             </div>
             {selectedId === f.id && (
-              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium flex-shrink-0">Selected</span>
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium flex-shrink-0 pt-0.5">Selected</span>
             )}
             <button
               onClick={e => { e.stopPropagation(); handleDelete(f.id); }}
-              className="flex-shrink-0 p-0.5 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
+              className="flex-shrink-0 mt-0.5 p-0.5 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
               title="Delete"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,10 +333,18 @@ export default function ValidateTab({ projectId, disciplines, phases }: Props) {
   const hasCells = disciplines.length > 0 && phases.length > 0;
 
   return (
-    <div className="flex gap-5 h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 gap-4">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-1">IFC Validation</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Select an IFC model and validate it against the requirements assigned in your IDS matrix.
+        </p>
+      </div>
+
+      <div className="flex gap-5 flex-1 min-h-0">
 
       {/* ── Left panel ─────────────────────────────────────────────────────── */}
-      <div className="w-72 flex-shrink-0 space-y-4 overflow-y-auto">
+      <div className="w-96 flex-shrink-0 space-y-4 overflow-y-auto">
         <IFCFilesPanel
           projectId={projectId}
           selectedId={selectedIfcId}
@@ -375,7 +383,7 @@ export default function ValidateTab({ projectId, disciplines, phases }: Props) {
         {!hasCells && (
           <div className="flex items-center justify-center h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              Add disciplines and phases in the Setup tab first.
+              Add disciplines and phases in the Project Setup tab first.
             </p>
           </div>
         )}
@@ -537,6 +545,7 @@ export default function ValidateTab({ projectId, disciplines, phases }: Props) {
           />
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -489,6 +489,12 @@ export default function CompareTab({ projectId, disciplines, phases, idsSources 
 
   return (
     <div className="space-y-6 pb-12">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-1">IDS Compare</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Compare matrix cells or imported IDS sources to inspect overlap, differences, and status changes.
+        </p>
+      </div>
 
       {/* ── Selector bar ─────────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">

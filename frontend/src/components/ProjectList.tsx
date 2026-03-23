@@ -55,9 +55,9 @@ export default function ProjectList({ projects, loading, onRefresh }: Props) {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-white">Projects</h1>
+          <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-white">IDS Stage Gate</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage your IDS Phase Editor projects
+            Manage your IDS Stage Gate projects
           </p>
         </div>
         <button

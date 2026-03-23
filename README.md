@@ -1,4 +1,4 @@
-# IDS Phase Editor
+# IDS Stage Gate
 
 A tool for managing and splitting IFC Information Delivery Specification (IDS) files by project phase.
 

@@ -38,7 +38,7 @@ export default function ExportTab({ projectId, disciplines, phases }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-1">Export IDS Files</h2>
+        <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-1">IDS Export</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Download IDS files for individual cells, by discipline, by phase, or the complete matrix.
         </p>
