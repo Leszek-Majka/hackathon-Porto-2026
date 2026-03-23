@@ -217,40 +217,90 @@ function StatBar({ label, a, b, colorA, colorB }: {
   );
 }
 
-function ChangedReqRow({ r }: { r: ChangedReq }) {
+function EnumChips({ values, color }: { values: string[]; color: 'blue' | 'green' }) {
+  if (values.length === 0) return <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>;
+  const cls = color === 'blue'
+    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
   return (
-    <div className="px-3 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/40 space-y-1">
-      <div className="flex items-center gap-2">
-        <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
-        <span className="font-mono text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{r.label}</span>
-        <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 truncate max-w-[120px]">{r.spec_name}</span>
-      </div>
-      {r.status_changed && (
-        <div className="flex items-center gap-1.5 pl-6 text-xs">
-          <span className="text-gray-400">status:</span>
-          {statusPill(r.status_a)}
-          <span className="text-gray-400">→</span>
-          {statusPill(r.status_b)}
-        </div>
-      )}
-      {r.values_changed && (
-        <div className="flex items-start gap-1.5 pl-6 text-xs">
-          <span className="text-gray-400 flex-shrink-0 mt-0.5">values:</span>
-          <div className="flex flex-wrap gap-1">
-            {r.enum_a.map(v => (
-              <span key={v} className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-mono px-1.5 py-0.5 rounded text-xs">{v}</span>
-            ))}
-            {r.enum_a.length === 0 && <span className="text-gray-400 italic">—</span>}
-          </div>
-          <span className="text-gray-400 flex-shrink-0 mt-0.5">→</span>
-          <div className="flex flex-wrap gap-1">
-            {r.enum_b.map(v => (
-              <span key={v} className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 font-mono px-1.5 py-0.5 rounded text-xs">{v}</span>
-            ))}
-            {r.enum_b.length === 0 && <span className="text-gray-400 italic">—</span>}
-          </div>
-        </div>
-      )}
+    <div className="flex flex-wrap gap-1">
+      {values.map(v => (
+        <span key={v} className={`font-mono text-xs px-1.5 py-0.5 rounded ${cls}`}>{v}</span>
+      ))}
+    </div>
+  );
+}
+
+function ChangedTable({ rows, labelA, labelB }: { rows: ChangedReq[]; labelA: string; labelB: string }) {
+  if (rows.length === 0) return <p className="text-xs text-gray-400 dark:text-gray-500 py-3 px-5">None</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 bg-gray-50/60 dark:bg-gray-800/30">
+            <th className="px-4 py-2 text-left font-medium w-8">#</th>
+            <th className="px-4 py-2 text-left font-medium">Requirement</th>
+            <th className="px-4 py-2 text-left font-medium">Spec</th>
+            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+                {labelA}
+              </span>
+            </th>
+            <th className="px-4 py-2 text-left font-medium min-w-[160px]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+                {labelB}
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const evenRow = i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20';
+            return (
+              <tr key={r.signature} className={`${evenRow} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 border-b border-gray-50 dark:border-gray-800/60`}>
+                <td className="px-4 py-2.5 text-gray-300 dark:text-gray-600 font-mono">{i + 1}</td>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
+                    <span className="font-mono text-gray-700 dark:text-gray-300 font-medium">{r.label}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-2.5 text-gray-400 dark:text-gray-500 truncate max-w-[120px]">{r.spec_name}</td>
+
+                {/* Cell A */}
+                <td className={`px-4 py-2.5 ${r.status_changed ? 'bg-blue-50/60 dark:bg-blue-900/10' : ''}`}>
+                  <div className="space-y-1.5">
+                    <div className={r.status_changed ? 'font-bold' : ''}>
+                      {statusPill(r.status_a)}
+                    </div>
+                    {r.enum_a.length > 0 || r.values_changed ? (
+                      <div className={r.values_changed ? 'ring-1 ring-blue-200 dark:ring-blue-800 rounded p-1' : ''}>
+                        <EnumChips values={r.enum_a} color="blue" />
+                      </div>
+                    ) : null}
+                  </div>
+                </td>
+
+                {/* Cell B */}
+                <td className={`px-4 py-2.5 ${r.status_changed ? 'bg-green-50/60 dark:bg-green-900/10' : ''}`}>
+                  <div className="space-y-1.5">
+                    <div className={r.status_changed ? 'font-bold' : ''}>
+                      {statusPill(r.status_b)}
+                    </div>
+                    {r.enum_b.length > 0 || r.values_changed ? (
+                      <div className={r.values_changed ? 'ring-1 ring-green-200 dark:ring-green-800 rounded p-1' : ''}>
+                        <EnumChips values={r.enum_b} color="green" />
+                      </div>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -532,7 +582,7 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               accent="border-orange-200 dark:border-orange-800"
               defaultOpen={ov.changed > 0}
             >
-              {result.changed.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+              <ChangedTable rows={result.changed} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Status changes ────────────────────────────────────────── */}
@@ -541,7 +591,7 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               count={ov.status_changes}
               accent="border-violet-200 dark:border-violet-800"
             >
-              {result.status_changes.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+              <ChangedTable rows={result.status_changes} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Value / enum changes ──────────────────────────────────── */}
@@ -550,7 +600,7 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
               count={ov.value_changes}
               accent="border-cyan-200 dark:border-cyan-800"
             >
-              {result.value_changes.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+              <ChangedTable rows={result.value_changes} labelA={ca.label} labelB={cb.label} />
             </CollapsibleSection>
 
             {/* ── Identical ─────────────────────────────────────────────── */}
