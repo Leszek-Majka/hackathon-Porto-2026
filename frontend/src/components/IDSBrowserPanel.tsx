@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { IDSSource } from '../types/sources';
 import IDSTreeBrowser from './IDSTreeBrowser';
 
@@ -9,9 +9,13 @@ interface Props {
 
 export default function IDSBrowserPanel({ projectId, sources }: Props) {
   const [collapsed, setCollapsed] = useState(false);
-  const [selectedSourceId, setSelectedSourceId] = useState<number | null>(
-    sources.length > 0 ? sources[0].id : null
-  );
+  const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (sources.length > 0 && (selectedSourceId === null || !sources.find(s => s.id === selectedSourceId))) {
+      setSelectedSourceId(sources[0].id);
+    }
+  }, [sources]);
 
   const selectedSource = sources.find(s => s.id === selectedSourceId) ?? null;
 
