@@ -33,9 +33,21 @@ function typeColor(type: string): string {
     default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
   }
 }
+function typeDescription(type: string): string {
+  switch (type) {
+    case 'property': return 'Property requirement';
+    case 'attribute': return 'Attribute requirement';
+    case 'material': return 'Material requirement';
+    case 'classification': return 'Classification requirement';
+    case 'partOf': return 'Part-of relationship requirement';
+    case 'entity': return 'Entity requirement';
+    default: return 'Requirement type';
+  }
+}
+
 
 function reqLabel(req: any): string {
-  if (!req) return '—';
+  if (!req) return '?';
   if (req.type === 'attribute') return req.name?.value ?? 'Attribute';
   if (req.type === 'property') {
     const ps = req.propertySet?.value ?? '';
@@ -56,6 +68,13 @@ function getEnumValues(req: any): string[] | null {
   if (v.type === 'simpleValue' && v.value) return [v.value];
   return null;
 }
+function getRequirementUri(req: any): string | null {
+  const uri = req?.uri;
+  if (typeof uri !== 'string') return null;
+  const trimmed = uri.trim();
+  return trimmed ? trimmed : null;
+}
+
 
 export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete, onUpdateValues }: Props) {
   const [enumOpen, setEnumOpen] = useState(false);
@@ -63,6 +82,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
   const reqType = req?.type ?? entry.entry_type;
   const enumValues = getEnumValues(req);
   const hasEnum = enumValues && enumValues.length > 0;
+  const requirementUri = getRequirementUri(req);
   const isMultiEnum = enumValues && enumValues.length > 1;
 
   return (
@@ -87,7 +107,11 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
           <span className="w-3 flex-shrink-0" />
         )}
 
-        <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(reqType)}`}>
+        <span
+          className={`font-mono text-xs px-1 rounded flex-shrink-0 cursor-help ${typeColor(reqType)}`}
+          title={typeDescription(reqType)}
+          aria-label={typeDescription(reqType)}
+        >
           {typeIcon(reqType)}
         </span>
 
@@ -96,6 +120,23 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
         </span>
 
         {/* IDS source label */}
+        {requirementUri && (
+          <a
+            href={requirementUri}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="inline-flex items-center gap-1 flex-shrink-0 text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 transition-colors"
+            title="Open IDS URI reference in bSDD"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 10.5L21 3m0 0h-5.25M21 3v5.25" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 6H6.75A1.75 1.75 0 005 7.75v9.5C5 18.216 5.784 19 6.75 19h9.5A1.75 1.75 0 0018 17.25V13.5" />
+            </svg>
+            <span>bSDD</span>
+          </a>
+        )}
+
         {sourceLabel && (
           <span className="flex-shrink-0 text-xs text-indigo-500 dark:text-indigo-400 font-medium truncate max-w-[90px]" title={sourceLabel}>
             {sourceLabel}
@@ -105,7 +146,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
         {/* Value hint */}
         {isMultiEnum && (
           <span className="text-xs font-mono text-gray-400 dark:text-gray-500 flex-shrink-0">
-            {enumValues!.length}×
+            {enumValues!.length}?
           </span>
         )}
         {!isMultiEnum && enumValues?.length === 1 && (
@@ -146,7 +187,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
                     className="ml-0.5 text-blue-300 hover:text-red-500 dark:text-blue-600 dark:hover:text-red-400 transition-colors leading-none"
                     title={`Remove "${v}"`}
                   >
-                    ×
+                    ?
                   </button>
                 )}
               </span>

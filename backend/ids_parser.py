@@ -161,6 +161,7 @@ def _parse_requirement(req_type: str, element: ET.Element, index: int) -> Dict:
     req: Dict[str, Any] = {
         "key": _build_req_key(req_type, element, index),
         "type": req_type,
+        "uri": element.get("uri", ""),
         "minOccurs": min_occurs_raw,
         "cardinality": cardinality,
         "baseStatus": base_status,

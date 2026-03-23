@@ -5,6 +5,7 @@ from typing import List, Optional, Any
 import json, uuid
 from database import get_db
 from models import MatrixCell, CellEntry, IDSSource, Discipline, Phase
+from ids_parser import parse_ids
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["matrix"])
 
@@ -127,7 +128,36 @@ def _cell_summary(cell: MatrixCell) -> dict:
     }
 
 
-def _entry_to_dict(e: CellEntry) -> dict:
+def _parsed_has_requirement_uri_field(parsed: dict) -> bool:
+    for spec in parsed.get("specifications", []):
+        for req in spec.get("requirements", []):
+            return "uri" in req
+    return True
+
+
+def _load_source_parsed(source: IDSSource, db: Session | None = None, persist: bool = False) -> dict:
+    parsed = json.loads(source.parsed_json)
+    if _parsed_has_requirement_uri_field(parsed):
+        return parsed
+
+    reparsed = parse_ids(source.raw_xml)
+    if persist and db is not None:
+        source.parsed_json = json.dumps(reparsed, ensure_ascii=False)
+    return reparsed
+
+
+def _build_requirement_uri_index(parsed: dict) -> dict[tuple[str, str], str]:
+    index: dict[tuple[str, str], str] = {}
+    for spec in parsed.get("specifications", []):
+        spec_name = spec.get("name", "")
+        for req in spec.get("requirements", []):
+            req_key = req.get("key")
+            if req_key:
+                index[(spec_name, req_key)] = req.get("uri", "")
+    return index
+
+
+def _entry_to_dict(e: CellEntry, requirement: dict | None = None) -> dict:
     return {
         "id": e.id,
         "cell_id": e.cell_id,
@@ -135,7 +165,7 @@ def _entry_to_dict(e: CellEntry) -> dict:
         "entry_type": e.entry_type,
         "spec_name": e.spec_name,
         "applicability": json.loads(e.applicability_json),
-        "requirement": json.loads(e.requirement_json),
+        "requirement": requirement if requirement is not None else json.loads(e.requirement_json),
         "status": e.status,
         "group_key": e.group_key,
         "group_type": e.group_type,
@@ -167,12 +197,28 @@ def get_cell(project_id: int, did: int, pid: int, db: Session = Depends(get_db))
     if not cell:
         return {"discipline_id": did, "phase_id": pid, "header": {}, "entries": []}
     header = json.loads(cell.header_json)
+
+    uri_indexes: dict[int, dict[tuple[str, str], str]] = {}
+    entries: list[dict] = []
+
+    for entry in cell.entries:
+        requirement = json.loads(entry.requirement_json)
+        if "uri" not in requirement and entry.source_ids_id and entry.source_ids:
+            if entry.source_ids_id not in uri_indexes:
+                parsed = _load_source_parsed(entry.source_ids)
+                uri_indexes[entry.source_ids_id] = _build_requirement_uri_index(parsed)
+            req_key = requirement.get("key")
+            if req_key:
+                requirement = dict(requirement)
+                requirement["uri"] = uri_indexes[entry.source_ids_id].get((entry.spec_name, req_key), "")
+        entries.append(_entry_to_dict(entry, requirement))
+
     return {
         "id": cell.id,
         "discipline_id": did,
         "phase_id": pid,
         "header": header,
-        "entries": [_entry_to_dict(e) for e in cell.entries],
+        "entries": entries,
     }
 
 
@@ -212,7 +258,7 @@ def drop_onto_cell(project_id: int, did: int, pid: int, body: DropPayload, db: S
     if not source:
         raise HTTPException(404, "Source IDS not found")
 
-    parsed = json.loads(source.parsed_json)
+    parsed = _load_source_parsed(source, db=db, persist=True)
     all_specs = parsed.get("specifications", [])
 
     # Build the list of (spec, group_key, group_type) tuples to add
