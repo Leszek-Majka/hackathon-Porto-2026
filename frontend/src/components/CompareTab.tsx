@@ -4,11 +4,15 @@ import type { Discipline } from '../types/setup';
 import type { Phase } from '../types/project';
 import type { CellSummary } from '../types/matrix';
 
-interface CompareReq {
-  signature: string;
-  label: string;
-  type: string;
-  spec_name: string;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface CellStats {
+  spec_count: number;
+  total: number;
+  required: number;
+  optional: number;
+  prohibited: number;
+  enum_count: number;
 }
 
 interface CellInfo {
@@ -17,21 +21,63 @@ interface CellInfo {
   label: string;
   discipline_name: string;
   phase_name: string;
+  header: Record<string, string>;
+  stats: CellStats;
+}
+
+interface Overview {
+  total_a: number;
+  total_b: number;
+  common: number;
+  only_a: number;
+  only_b: number;
+  changed: number;
+  identical: number;
+  status_changes: number;
+  value_changes: number;
+}
+
+interface CompareReq {
+  signature: string;
+  label: string;
+  type: string;
+  spec_name: string;
+  status?: string;
+  enum_values?: string[];
+}
+
+interface ChangedReq {
+  signature: string;
+  label: string;
+  type: string;
+  spec_name: string;
+  status_a: string;
+  status_b: string;
+  enum_a: string[];
+  enum_b: string[];
+  status_changed: boolean;
+  values_changed: boolean;
+}
+
+interface BySpec {
+  spec_name: string;
+  only_a: number;
+  only_b: number;
+  changed: number;
+  identical: number;
 }
 
 interface CompareResult {
   cell_a: CellInfo;
   cell_b: CellInfo;
-  stats: {
-    total_a: number;
-    total_b: number;
-    common: number;
-    only_a: number;
-    only_b: number;
-  };
-  common: CompareReq[];
+  overview: Overview;
   only_a: CompareReq[];
   only_b: CompareReq[];
+  changed: ChangedReq[];
+  identical: CompareReq[];
+  status_changes: ChangedReq[];
+  value_changes: ChangedReq[];
+  by_spec: BySpec[];
 }
 
 interface Props {
@@ -40,7 +86,7 @@ interface Props {
   phases: Phase[];
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function typeColor(type: string): string {
   switch (type) {
@@ -66,80 +112,147 @@ function typeIcon(type: string): string {
   }
 }
 
+function statusPill(status: string) {
+  const cls =
+    status === 'required'   ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' :
+    status === 'optional'   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+    status === 'prohibited' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                              'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
+  return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cls}`}>{status}</span>;
+}
+
+function cellKey(discId: number, phaseId: number) { return `${discId}_${phaseId}`; }
+function parseKey(key: string): [number, number] {
+  const [d, p] = key.split('_').map(Number);
+  return [d, p];
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function ReqList({ reqs }: { reqs: CompareReq[] }) {
-  if (reqs.length === 0) {
-    return <p className="text-xs text-gray-400 dark:text-gray-500 py-2 px-1">None</p>;
-  }
+function SectionHeader({ title, count, accent, open, onToggle }: {
+  title: string; count: number; accent: string; open: boolean; onToggle: () => void;
+}) {
   return (
-    <div className="space-y-1 mt-2">
-      {reqs.map(r => (
-        <div key={r.signature} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
-          <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>
-            {typeIcon(r.type)}
-          </span>
-          <span className="font-mono text-xs text-gray-700 dark:text-gray-300 truncate flex-1">{r.label}</span>
-          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 truncate max-w-[140px]">{r.spec_name}</span>
-        </div>
-      ))}
+    <button
+      onClick={onToggle}
+      className={`w-full flex items-center justify-between px-5 py-3 text-left rounded-xl border-2 ${accent} bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50`}
+    >
+      <div className="flex items-center gap-2.5">
+        <svg className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{title}</span>
+      </div>
+      <span className={`text-xl font-bold ${count === 0 ? 'text-gray-300 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300'}`}>{count}</span>
+    </button>
+  );
+}
+
+function ReqRow({ r, side }: { r: CompareReq; side?: 'a' | 'b' }) {
+  const sideColor = side === 'a' ? 'border-l-2 border-blue-300 dark:border-blue-700' :
+                    side === 'b' ? 'border-l-2 border-green-300 dark:border-green-700' : '';
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800/40 ${sideColor}`}>
+      <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
+      <span className="font-mono text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{r.label}</span>
+      {r.status && statusPill(r.status)}
+      {r.enum_values && r.enum_values.length > 0 && (
+        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono flex-shrink-0">
+          {r.enum_values.slice(0, 2).join(', ')}{r.enum_values.length > 2 ? ` +${r.enum_values.length - 2}` : ''}
+        </span>
+      )}
+      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 truncate max-w-[120px]">{r.spec_name}</span>
     </div>
   );
 }
 
-function Section({ title, count, reqs, accent }: {
-  title: string;
-  count: number;
-  reqs: CompareReq[];
-  accent: string;
+function CollapsibleSection({
+  title, count, accent, defaultOpen = false, children,
+}: {
+  title: string; count: number; accent: string; defaultOpen?: boolean; children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={`rounded-xl border-2 ${accent} bg-white dark:bg-gray-900 overflow-hidden`}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left"
-      >
-        <div className="flex items-center gap-3">
-          <svg
-            className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{title}</span>
+    <div className="rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm">
+      <SectionHeader title={title} count={count} accent={accent} open={open} onToggle={() => setOpen(v => !v)} />
+      {open && count > 0 && (
+        <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-2 py-2 space-y-0.5">
+          {children}
         </div>
-        <span className="text-2xl font-bold text-gray-700 dark:text-gray-300">{count}</span>
-      </button>
-      {open && (
-        <div className="px-5 pb-4 border-t border-gray-100 dark:border-gray-800">
-          <ReqList reqs={reqs} />
+      )}
+      {open && count === 0 && (
+        <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-5 py-3">
+          <p className="text-xs text-gray-400 dark:text-gray-500">None</p>
         </div>
       )}
     </div>
   );
 }
 
-function VennDiagram({ stats }: { stats: CompareResult['stats'] }) {
-  const total = stats.only_a + stats.common + stats.only_b;
-  if (total === 0) return null;
+function StatBar({ label, a, b, colorA, colorB }: {
+  label: string; a: number; b: number; colorA: string; colorB: string;
+}) {
+  const max = Math.max(a, b, 1);
   return (
-    <svg viewBox="0 0 200 90" className="w-full max-w-[200px] mx-auto">
-      <circle cx="75"  cy="45" r="38" fill="#3B82F6" fillOpacity="0.15" stroke="#3B82F6" strokeWidth="1.5" />
-      <circle cx="125" cy="45" r="38" fill="#10B981" fillOpacity="0.15" stroke="#10B981" strokeWidth="1.5" />
-      <text x="48"  y="48" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#3B82F6">{stats.only_a}</text>
-      <text x="100" y="48" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#6B7280">{stats.common}</text>
-      <text x="152" y="48" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#10B981">{stats.only_b}</text>
-    </svg>
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-gray-500 dark:text-gray-400 w-20 flex-shrink-0 text-right">{label}</span>
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: colorA }} />
+          <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${(a / max) * 100}%`, background: colorA }} />
+          </div>
+          <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 w-6 text-right">{a}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: colorB }} />
+          <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${(b / max) * 100}%`, background: colorB }} />
+          </div>
+          <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 w-6 text-right">{b}</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// ── Cell selector key helpers ─────────────────────────────────────────────────
-
-function cellKey(discId: number, phaseId: number) { return `${discId}_${phaseId}`; }
-function parseKey(key: string): [number, number] {
-  const [d, p] = key.split('_').map(Number);
-  return [d, p];
+function ChangedReqRow({ r }: { r: ChangedReq }) {
+  return (
+    <div className="px-3 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/40 space-y-1">
+      <div className="flex items-center gap-2">
+        <span className={`font-mono text-xs px-1 rounded flex-shrink-0 ${typeColor(r.type)}`}>{typeIcon(r.type)}</span>
+        <span className="font-mono text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{r.label}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 truncate max-w-[120px]">{r.spec_name}</span>
+      </div>
+      {r.status_changed && (
+        <div className="flex items-center gap-1.5 pl-6 text-xs">
+          <span className="text-gray-400">status:</span>
+          {statusPill(r.status_a)}
+          <span className="text-gray-400">→</span>
+          {statusPill(r.status_b)}
+        </div>
+      )}
+      {r.values_changed && (
+        <div className="flex items-start gap-1.5 pl-6 text-xs">
+          <span className="text-gray-400 flex-shrink-0 mt-0.5">values:</span>
+          <div className="flex flex-wrap gap-1">
+            {r.enum_a.map(v => (
+              <span key={v} className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-mono px-1.5 py-0.5 rounded text-xs">{v}</span>
+            ))}
+            {r.enum_a.length === 0 && <span className="text-gray-400 italic">—</span>}
+          </div>
+          <span className="text-gray-400 flex-shrink-0 mt-0.5">→</span>
+          <div className="flex flex-wrap gap-1">
+            {r.enum_b.map(v => (
+              <span key={v} className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 font-mono px-1.5 py-0.5 rounded text-xs">{v}</span>
+            ))}
+            {r.enum_b.length === 0 && <span className="text-gray-400 italic">—</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -156,7 +269,6 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
     api.matrix.summary(projectId).then(setSummary).catch(() => {});
   }, [projectId]);
 
-  // Build the list of cells with entries, labelled "Discipline × Phase"
   const nonEmptyCells = summary
     .filter(s => s.entry_count > 0)
     .map(s => {
@@ -191,185 +303,303 @@ export default function CompareTab({ projectId, disciplines, phases }: Props) {
   const canCompare = cellA && cellB && cellA !== cellB;
 
   return (
-    <div className="flex gap-6 items-start">
+    <div className="space-y-6 pb-12">
 
-      {/* ── Left sidebar ─────────────────────────────────────────────────── */}
-      <div className="w-64 flex-shrink-0 space-y-4 sticky top-0">
-
-        {/* Selector card */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-            Select cells to compare
-          </h3>
-
-          {nonEmptyCells.length < 2 ? (
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              At least two non-empty matrix cells are required. Add requirements to the matrix first.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Cell A</label>
-                <select
-                  value={cellA}
-                  onChange={e => { setCellA(e.target.value); setResult(null); }}
-                  className="w-full text-xs border border-blue-300 dark:border-blue-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">— choose —</option>
-                  {nonEmptyCells.map(c => (
-                    <option key={c.key} value={c.key} disabled={c.key === cellB}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-center text-sm font-bold text-gray-400">vs</div>
-
-              <div>
-                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Cell B</label>
-                <select
-                  value={cellB}
-                  onChange={e => { setCellB(e.target.value); setResult(null); }}
-                  className="w-full text-xs border border-green-300 dark:border-green-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500"
-                >
-                  <option value="">— choose —</option>
-                  {nonEmptyCells.map(c => (
-                    <option key={c.key} value={c.key} disabled={c.key === cellA}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={runCompare}
-                disabled={!canCompare || loading}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors"
+      {/* ── Selector bar ─────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        {nonEmptyCells.length < 2 ? (
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            At least two non-empty matrix cells are required. Add requirements to the matrix first.
+          </p>
+        ) : (
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <label className="text-xs font-medium text-blue-600 dark:text-blue-400">Cell A</label>
+              <select
+                value={cellA}
+                onChange={e => { setCellA(e.target.value); setResult(null); }}
+                className="text-sm border border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                {loading ? 'Comparing…' : 'Compare'}
-              </button>
+                <option value="">— choose —</option>
+                {nonEmptyCells.map(c => (
+                  <option key={c.key} value={c.key} disabled={c.key === cellB}>{c.label}</option>
+                ))}
+              </select>
             </div>
-          )}
+
+            <div className="text-sm font-bold text-gray-400 dark:text-gray-500 pb-2">vs</div>
+
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <label className="text-xs font-medium text-green-600 dark:text-green-400">Cell B</label>
+              <select
+                value={cellB}
+                onChange={e => { setCellB(e.target.value); setResult(null); }}
+                className="text-sm border border-green-300 dark:border-green-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
+                <option value="">— choose —</option>
+                {nonEmptyCells.map(c => (
+                  <option key={c.key} value={c.key} disabled={c.key === cellA}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={runCompare}
+              disabled={!canCompare || loading}
+              className="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {loading ? 'Comparing…' : 'Compare'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Loading ───────────────────────────────────────────────────────── */}
+      {loading && (
+        <div className="flex items-center justify-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
         </div>
+      )}
 
-        {/* Summary card — shown after comparison */}
-        {result && (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-4">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              Summary
-            </h3>
+      {/* ── Error ─────────────────────────────────────────────────────────── */}
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
-            <VennDiagram stats={result.stats} />
+      {/* ── Empty state ───────────────────────────────────────────────────── */}
+      {!result && !loading && !error && (
+        <div className="flex items-center justify-center h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+          <p className="text-sm text-gray-400 dark:text-gray-500">Select two matrix cells and click Compare.</p>
+        </div>
+      )}
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-400 truncate">{result.cell_a.label}</span>
-                </span>
-                <span className="font-bold text-gray-700 dark:text-gray-300 ml-2 flex-shrink-0">{result.stats.total_a}</span>
+      {result && !loading && (() => {
+        const ov = result.overview;
+        const ca = result.cell_a;
+        const cb = result.cell_b;
+
+        return (
+          <div className="space-y-6">
+
+            {/* ── Cell info cards ───────────────────────────────────────── */}
+            <div className="grid grid-cols-2 gap-4">
+              {([['a', ca, '#3B82F6', 'border-blue-200 dark:border-blue-800'], ['b', cb, '#10B981', 'border-green-200 dark:border-green-800']] as const).map(([side, cell, color, border]) => (
+                <div key={side} className={`bg-white dark:bg-gray-900 border-2 ${border} rounded-xl p-4 space-y-3`}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      {side.toUpperCase()}: {cell.label}
+                    </span>
+                  </div>
+                  {cell.header?.title && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic truncate">{cell.header.title}</p>
+                  )}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{cell.stats.spec_count}</div>
+                      <div className="text-gray-400 dark:text-gray-500">specs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{cell.stats.total}</div>
+                      <div className="text-gray-400 dark:text-gray-500">requirements</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-400 dark:text-gray-500 font-mono">{cell.stats.enum_count}</div>
+                      <div className="text-gray-400 dark:text-gray-500">enum values</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    <span className="text-xs bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 px-2 py-0.5 rounded">
+                      {cell.stats.required} required
+                    </span>
+                    {cell.stats.optional > 0 && (
+                      <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded">
+                        {cell.stats.optional} optional
+                      </span>
+                    )}
+                    {cell.stats.prohibited > 0 && (
+                      <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 px-2 py-0.5 rounded">
+                        {cell.stats.prohibited} prohibited
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Stats comparison bars ─────────────────────────────────── */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-3">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
+                Requirements comparison
+              </h3>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-3 h-3 rounded-sm" style={{ background: '#3B82F6' }} />
+                <span className="text-xs text-gray-500 dark:text-gray-400">A: {ca.label}</span>
+                <span className="w-3 h-3 rounded-sm ml-3" style={{ background: '#10B981' }} />
+                <span className="text-xs text-gray-500 dark:text-gray-400">B: {cb.label}</span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-400 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-400 truncate">{result.cell_b.label}</span>
-                </span>
-                <span className="font-bold text-gray-700 dark:text-gray-300 ml-2 flex-shrink-0">{result.stats.total_b}</span>
+              <div className="space-y-2.5">
+                <StatBar label="Total" a={ov.total_a} b={ov.total_b} colorA="#3B82F6" colorB="#10B981" />
+                <StatBar label="Required" a={ca.stats.required} b={cb.stats.required} colorA="#0D9488" colorB="#059669" />
+                <StatBar label="Optional" a={ca.stats.optional} b={cb.stats.optional} colorA="#F59E0B" colorB="#D97706" />
+                <StatBar label="Prohibited" a={ca.stats.prohibited} b={cb.stats.prohibited} colorA="#F87171" colorB="#EF4444" />
+                <StatBar label="Enum values" a={ca.stats.enum_count} b={cb.stats.enum_count} colorA="#9CA3AF" colorB="#6B7280" />
               </div>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 dark:text-gray-400">Common</span>
-                <span className="font-bold text-gray-700 dark:text-gray-300">{result.stats.common}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-blue-600 dark:text-blue-400">Only in A</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">{result.stats.only_a}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-green-600 dark:text-green-400">Only in B</span>
-                <span className="font-bold text-green-600 dark:text-green-400">{result.stats.only_b}</span>
+            {/* ── Overview Venn ─────────────────────────────────────────── */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
+                Overlap overview
+              </h3>
+              <div className="flex items-center gap-6 flex-wrap">
+                {/* Venn */}
+                <svg viewBox="0 0 220 100" className="w-48 flex-shrink-0">
+                  <circle cx="80"  cy="50" r="44" fill="#3B82F6" fillOpacity="0.15" stroke="#3B82F6" strokeWidth="1.5" />
+                  <circle cx="140" cy="50" r="44" fill="#10B981" fillOpacity="0.15" stroke="#10B981" strokeWidth="1.5" />
+                  <text x="52"  y="54" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#3B82F6">{ov.only_a}</text>
+                  <text x="110" y="54" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#6B7280">{ov.common}</text>
+                  <text x="168" y="54" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#10B981">{ov.only_b}</text>
+                  <text x="52"  y="68" textAnchor="middle" fontSize="8" fill="#3B82F6">only A</text>
+                  <text x="110" y="68" textAnchor="middle" fontSize="8" fill="#6B7280">common</text>
+                  <text x="168" y="68" textAnchor="middle" fontSize="8" fill="#10B981">only B</text>
+                </svg>
+                {/* Stacked bar */}
+                <div className="flex-1 min-w-[180px] space-y-2">
+                  {(ov.only_a + ov.common + ov.only_b) > 0 && (
+                    <div className="flex h-4 rounded-full overflow-hidden gap-px" title="Requirement overlap">
+                      {ov.only_a > 0 && <div className="bg-blue-400" style={{ flex: ov.only_a }} />}
+                      {ov.common > 0 && <div className="bg-gray-400" style={{ flex: ov.common }} />}
+                      {ov.only_b > 0 && <div className="bg-green-400" style={{ flex: ov.only_b }} />}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-600 dark:text-blue-400">Only in A</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">{ov.only_a}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-600 dark:text-green-400">Only in B</span>
+                      <span className="font-bold text-green-600 dark:text-green-400">{ov.only_b}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Common</span>
+                      <span className="font-bold text-gray-700 dark:text-gray-300">{ov.common}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-orange-600 dark:text-orange-400">Changed</span>
+                      <span className="font-bold text-orange-600 dark:text-orange-400">{ov.changed}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Identical</span>
+                      <span className="font-bold text-gray-700 dark:text-gray-300">{ov.identical}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-violet-600 dark:text-violet-400">Status changes</span>
+                      <span className="font-bold text-violet-600 dark:text-violet-400">{ov.status_changes}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Stacked bar */}
-            {(result.stats.only_a + result.stats.common + result.stats.only_b) > 0 && (
-              <div className="flex h-3 rounded-full overflow-hidden gap-px">
-                {result.stats.only_a > 0 && (
-                  <div className="bg-blue-400 dark:bg-blue-500" style={{ flex: result.stats.only_a }} title={`Only in A: ${result.stats.only_a}`} />
-                )}
-                {result.stats.common > 0 && (
-                  <div className="bg-gray-400 dark:bg-gray-500" style={{ flex: result.stats.common }} title={`Common: ${result.stats.common}`} />
-                )}
-                {result.stats.only_b > 0 && (
-                  <div className="bg-green-400 dark:bg-green-500" style={{ flex: result.stats.only_b }} title={`Only in B: ${result.stats.only_b}`} />
-                )}
+            {/* ── Only in A ─────────────────────────────────────────────── */}
+            <CollapsibleSection
+              title={`Only in A — ${ca.label}`}
+              count={ov.only_a}
+              accent="border-blue-200 dark:border-blue-800"
+              defaultOpen={ov.only_a > 0}
+            >
+              {result.only_a.map(r => <ReqRow key={r.signature} r={r} side="a" />)}
+            </CollapsibleSection>
+
+            {/* ── Only in B ─────────────────────────────────────────────── */}
+            <CollapsibleSection
+              title={`Only in B — ${cb.label}`}
+              count={ov.only_b}
+              accent="border-green-200 dark:border-green-800"
+              defaultOpen={ov.only_b > 0}
+            >
+              {result.only_b.map(r => <ReqRow key={r.signature} r={r} side="b" />)}
+            </CollapsibleSection>
+
+            {/* ── Changed (any difference) ──────────────────────────────── */}
+            <CollapsibleSection
+              title="Changed requirements"
+              count={ov.changed}
+              accent="border-orange-200 dark:border-orange-800"
+              defaultOpen={ov.changed > 0}
+            >
+              {result.changed.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+            </CollapsibleSection>
+
+            {/* ── Status changes ────────────────────────────────────────── */}
+            <CollapsibleSection
+              title="Status changes"
+              count={ov.status_changes}
+              accent="border-violet-200 dark:border-violet-800"
+            >
+              {result.status_changes.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+            </CollapsibleSection>
+
+            {/* ── Value / enum changes ──────────────────────────────────── */}
+            <CollapsibleSection
+              title="Value / enum changes"
+              count={ov.value_changes}
+              accent="border-cyan-200 dark:border-cyan-800"
+            >
+              {result.value_changes.map(r => <ChangedReqRow key={r.signature} r={r} />)}
+            </CollapsibleSection>
+
+            {/* ── Identical ─────────────────────────────────────────────── */}
+            <CollapsibleSection
+              title="Identical requirements"
+              count={ov.identical}
+              accent="border-gray-200 dark:border-gray-700"
+            >
+              {result.identical.map(r => <ReqRow key={r.signature} r={r} />)}
+            </CollapsibleSection>
+
+            {/* ── By specification ──────────────────────────────────────── */}
+            {result.by_spec.length > 0 && (
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    By specification
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500">
+                        <th className="px-5 py-2 text-left font-medium">Specification</th>
+                        <th className="px-3 py-2 text-right font-medium text-blue-500">Only A</th>
+                        <th className="px-3 py-2 text-right font-medium text-green-500">Only B</th>
+                        <th className="px-3 py-2 text-right font-medium text-orange-500">Changed</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-400">Identical</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.by_spec.map((s, i) => (
+                        <tr key={s.spec_name} className={`${i % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''} hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10`}>
+                          <td className="px-5 py-2 font-mono text-gray-700 dark:text-gray-300 truncate max-w-[200px]">{s.spec_name}</td>
+                          <td className="px-3 py-2 text-right font-bold text-blue-600 dark:text-blue-400">{s.only_a || '—'}</td>
+                          <td className="px-3 py-2 text-right font-bold text-green-600 dark:text-green-400">{s.only_b || '—'}</td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-600 dark:text-orange-400">{s.changed || '—'}</td>
+                          <td className="px-3 py-2 text-right text-gray-400 dark:text-gray-500">{s.identical || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
-          </div>
-        )}
-      </div>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0">
-        {!result && !loading && (
-          <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              Select two matrix cells and click Compare.
-            </p>
           </div>
-        )}
-
-        {loading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
-            {error}
-          </div>
-        )}
-
-        {result && !loading && (
-          <div className="space-y-4">
-            {/* Cell labels */}
-            <div className="flex items-center gap-3 text-sm flex-wrap">
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-full bg-blue-400 flex-shrink-0" />
-                <span className="text-blue-700 dark:text-blue-300">A: {result.cell_a.label}</span>
-              </span>
-              <span className="text-gray-300 dark:text-gray-600">|</span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-full bg-green-400 flex-shrink-0" />
-                <span className="text-green-700 dark:text-green-300">B: {result.cell_b.label}</span>
-              </span>
-            </div>
-
-            <Section
-              title="Common requirements"
-              count={result.stats.common}
-              reqs={result.common}
-              accent="border-gray-200 dark:border-gray-700"
-            />
-            <Section
-              title={`Only in A — ${result.cell_a.label}`}
-              count={result.stats.only_a}
-              reqs={result.only_a}
-              accent="border-blue-200 dark:border-blue-800"
-            />
-            <Section
-              title={`Only in B — ${result.cell_b.label}`}
-              count={result.stats.only_b}
-              reqs={result.only_b}
-              accent="border-green-200 dark:border-green-800"
-            />
-          </div>
-        )}
-      </div>
+        );
+      })()}
     </div>
   );
 }
