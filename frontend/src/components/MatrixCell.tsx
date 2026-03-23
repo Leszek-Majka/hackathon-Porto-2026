@@ -90,9 +90,20 @@ export default function MatrixCell({
             <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
               {summary!.spec_count} spec{summary!.spec_count !== 1 ? 's' : ''}
             </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
+            <span className="text-xs text-teal-500 dark:text-teal-400 flex items-center gap-1">
               {summary!.entry_count} req
+              {summary!.optional_count > 0 && (
+                <span className="text-amber-500 dark:text-amber-400">{summary!.optional_count} opt</span>
+              )}
+              {summary!.prohibited_count > 0 && (
+                <span className="text-red-400 dark:text-red-500">{summary!.prohibited_count} proh</span>
+              )}
             </span>
+            {summary!.enum_count > 0 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                {summary!.enum_count} enum
+              </span>
+            )}
           </div>
         )}
         {!dragOver && isEmpty && (

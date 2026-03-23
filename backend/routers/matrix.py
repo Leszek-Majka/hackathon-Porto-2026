@@ -106,11 +106,24 @@ def _get_or_create_cell(project_id: int, discipline_id: int, phase_id: int, db: 
 
 def _cell_summary(cell: MatrixCell) -> dict:
     spec_names = set(e.spec_name for e in cell.entries if e.spec_name)
+    enum_count = 0
+    for e in cell.entries:
+        req = json.loads(e.requirement_json)
+        v = req.get("value")
+        if v and v.get("type") == "enumeration":
+            enum_count += len(v.get("values") or [])
+        elif v and v.get("type") == "simpleValue" and v.get("value"):
+            enum_count += 1
+    optional_count = sum(1 for e in cell.entries if e.status == "optional")
+    prohibited_count = sum(1 for e in cell.entries if e.status == "prohibited")
     return {
         "discipline_id": cell.discipline_id,
         "phase_id": cell.phase_id,
         "entry_count": len(cell.entries),
         "spec_count": len(spec_names),
+        "enum_count": enum_count,
+        "optional_count": optional_count,
+        "prohibited_count": prohibited_count,
     }
 
 

@@ -3,6 +3,9 @@ export interface CellSummary {
   phase_id: number;
   entry_count: number;
   spec_count: number;
+  enum_count: number;
+  optional_count: number;
+  prohibited_count: number;
 }
 
 export interface SpecMeta {
