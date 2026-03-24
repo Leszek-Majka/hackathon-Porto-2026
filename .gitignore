@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .env
 backend/ids_editor.db
+backend/uploads/
 
 # Node
 node_modules/
@@ -15,3 +16,6 @@ dist/
 .vscode/
 .idea/
 *.swp
+
+# Local sample and confidential IFC data
+IFC_Sample/*.ifc
