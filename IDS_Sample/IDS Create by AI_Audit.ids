@@ -1,0 +1,304 @@
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+    <info>
+        <title>Information Delivery Specification for Bertrand Russell College</title>
+    </info>
+    <specifications>
+        <specification name="IFC Version Requirements" ifcVersion="IFC4X3_ADD2" description="Models must comply with IFC4 or IFC4x3 standards.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="Models must comply with IFC4 or IFC4x3 standards; if modeling software does not support this, advisor must upgrade from IFC2x3 to IFC4 using BlenderBIM/Bonsai before delivery. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_General</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>IFCVersion</simpleValue>
+                    </baseName>
+                    <value>
+                        <simpleValue>IFC4 / IFC4x3</simpleValue>
+                    </value>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Building Storey Naming" ifcVersion="IFC4X3_ADD2" description="Consistent naming for building storeys.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGSTOREY</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="Use consistent naming: -1 basement, 00 ground floor, 00a mezzanine, 01 first floor, 02 second floor. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingStoreyCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>Name</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="NL-SfB Code Requirements" ifcVersion="IFC4X3_ADD2" description="All material objects must have a four-digit NL-SfB code.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <classification cardinality="required" instructions="All material objects must have a four-digit NL-SfB code per latest published version. (Section 8.4)">
+                    <system>
+                        <simpleValue>NL-SfB</simpleValue>
+                    </system>
+                </classification>
+            </requirements>
+        </specification>
+        <specification name="Material Assignment Requirements" ifcVersion="IFC4X3_ADD2" description="All objects must have a material assigned.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCMATERIAL</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <material cardinality="required" instructions="All objects must have a material (IfcMaterial); choose dominant material for assemblies. (Section 8.4)" />
+            </requirements>
+        </specification>
+        <specification name="Functional Spaces Creation" ifcVersion="IFC4X3_ADD2" description="Create IfcSpace for net rooms and assign function names.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCSPACE</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="Create IfcSpace for net rooms and assign function names traceable to the Program of Requirements. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_SpaceCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>Name</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Fire Rating Requirements" ifcVersion="IFC4X3_ADD2" description="FireRating property required on relevant objects.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="FireRating property required on relevant objects. Responsibility: Architect and Structural Engineer. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>FireRating</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Structural Fire Resistance Requirements" ifcVersion="IFC4X3_ADD2" description="Fire resistance regarding structural failure is required.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="Fire resistance regarding structural failure is required. Responsibility: Structural Engineer. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>StructuralFireResistance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Acoustic Rating Requirements" ifcVersion="IFC4X3_ADD2" description="AcousticRating property required on relevant objects.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCLABEL" cardinality="required" instructions="AcousticRating property required on relevant objects. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>AcousticRating</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Thermal Transmittance Requirements" ifcVersion="IFC4X3_ADD2" description="ThermalTransmittance (U-value) required on relevant objects.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="ThermalTransmittance (U-value) required on relevant objects. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ThermalTransmittance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Solar Heat Gain Requirements" ifcVersion="IFC4X3_ADD2" description="SolarHeatGainTransmittance (ZTA value) required on relevant objects.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="SolarHeatGainTransmittance (ZTA value) required on relevant objects. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>SolarHeatGainTransmittance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Load Bearing Property Requirements" ifcVersion="IFC4X3_ADD2" description="Objects must indicate LoadBearing True or False.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCBOOLEAN" cardinality="required" instructions="Objects must indicate LoadBearing True or False where applicable. Responsibility: Architect and Structural Engineer. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>IsLoadBearing</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="External Property Requirements" ifcVersion="IFC4X3_ADD2" description="Objects must indicate IsExternal True or False.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCBOOLEAN" cardinality="required" instructions="Objects must indicate IsExternal True or False where applicable. Responsibility: Architect and Structural Engineer. (Section 8.4)">
+                    <propertySet>
+                        <simpleValue>Pset_BuildingCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>IsExternal</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Clash Policy for Primary Elements" ifcVersion="IFC4X3_ADD2" description="Clash tolerance for primary NL-SfB elements.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="Clash tolerance for primary NL-SfB elements in Preliminary Design. &gt;25mm NOT allowed. (Section 8.5)">
+                    <propertySet>
+                        <simpleValue>Pset_ClashPolicy</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ClashTolerance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Clash Policy for Secondary Elements" ifcVersion="IFC4X3_ADD2" description="Clash tolerance for secondary NL-SfB elements.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="Clash tolerance for secondary NL-SfB elements. &gt;50mm NOT allowed. (Section 8.5)">
+                    <propertySet>
+                        <simpleValue>Pset_ClashPolicy</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ClashTolerance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Clash Policy for Tertiary Elements" ifcVersion="IFC4X3_ADD2" description="Clash tolerance for tertiary NL-SfB elements.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="Clash tolerance for tertiary NL-SfB elements. &gt;75mm NOT allowed. (Section 8.5)">
+                    <propertySet>
+                        <simpleValue>Pset_ClashPolicy</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ClashTolerance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+        <specification name="Clash Policy for Quaternary Elements" ifcVersion="IFC4X3_ADD2" description="Clash tolerance for quaternary NL-SfB elements.">
+            <applicability minOccurs="0" maxOccurs="unbounded">
+                <entity>
+                    <name>
+                        <simpleValue>IFCBUILDINGELEMENT</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property dataType="IFCREAL" cardinality="required" instructions="Clash tolerance for quaternary NL-SfB elements (8-/9-) allowed if justified. Must be agreed with Information Manager OG. (Section 8.5)">
+                    <propertySet>
+                        <simpleValue>Pset_ClashPolicy</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ClashTolerance</simpleValue>
+                    </baseName>
+                </property>
+            </requirements>
+        </specification>
+    </specifications>
+</ids>

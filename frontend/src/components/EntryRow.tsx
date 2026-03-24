@@ -5,6 +5,8 @@ import StatusPill from './StatusPill';
 interface Props {
   entry: CellEntry;
   sourceLabel?: string;
+  isSelected?: boolean;
+  onSelect?: (eid: number, e: React.MouseEvent) => void;
   onStatusChange: (eid: number, status: string) => Promise<void>;
   onDelete: (eid: number) => Promise<void>;
   onUpdateValues?: (eid: number, values: string[]) => Promise<void>;
@@ -33,6 +35,7 @@ function typeColor(type: string): string {
     default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
   }
 }
+
 function typeDescription(type: string): string {
   switch (type) {
     case 'property': return 'Property requirement';
@@ -45,9 +48,8 @@ function typeDescription(type: string): string {
   }
 }
 
-
 function reqLabel(req: any): string {
-  if (!req) return '?';
+  if (!req) return '—';
   if (req.type === 'attribute') return req.name?.value ?? 'Attribute';
   if (req.type === 'property') {
     const ps = req.propertySet?.value ?? '';
@@ -68,6 +70,7 @@ function getEnumValues(req: any): string[] | null {
   if (v.type === 'simpleValue' && v.value) return [v.value];
   return null;
 }
+
 function getRequirementUri(req: any): string | null {
   const uri = req?.uri;
   if (typeof uri !== 'string') return null;
@@ -75,20 +78,26 @@ function getRequirementUri(req: any): string | null {
   return trimmed ? trimmed : null;
 }
 
-
-export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete, onUpdateValues }: Props) {
+export default function EntryRow({ entry, sourceLabel, isSelected, onSelect, onStatusChange, onDelete, onUpdateValues }: Props) {
   const [enumOpen, setEnumOpen] = useState(false);
   const req = entry.requirement;
   const reqType = req?.type ?? entry.entry_type;
   const enumValues = getEnumValues(req);
-  const hasEnum = enumValues && enumValues.length > 0;
   const requirementUri = getRequirementUri(req);
+  const hasEnum = enumValues && enumValues.length > 0;
   const isMultiEnum = enumValues && enumValues.length > 1;
 
   return (
     <div>
       {/* Main row */}
-      <div className="flex items-center gap-2 py-1.5 px-2 group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded">
+      <div
+        className={`flex items-center gap-2 py-1.5 px-2 group rounded cursor-pointer select-none ${
+          isSelected
+            ? 'bg-indigo-50 dark:bg-indigo-900/25 ring-1 ring-inset ring-indigo-300 dark:ring-indigo-700'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+        }`}
+        onClick={e => onSelect?.(entry.id, e)}
+      >
         {/* Chevron for enum */}
         {hasEnum ? (
           <button
@@ -119,7 +128,6 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
           {reqLabel(req)}
         </span>
 
-        {/* IDS source label */}
         {requirementUri && (
           <a
             href={requirementUri}
@@ -137,6 +145,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
           </a>
         )}
 
+        {/* IDS source label */}
         {sourceLabel && (
           <span className="flex-shrink-0 text-xs text-indigo-500 dark:text-indigo-400 font-medium truncate max-w-[90px]" title={sourceLabel}>
             {sourceLabel}
@@ -146,7 +155,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
         {/* Value hint */}
         {isMultiEnum && (
           <span className="text-xs font-mono text-gray-400 dark:text-gray-500 flex-shrink-0">
-            {enumValues!.length}?
+            {enumValues!.length}×
           </span>
         )}
         {!isMultiEnum && enumValues?.length === 1 && (
@@ -155,13 +164,15 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
           </span>
         )}
 
-        <StatusPill
-          status={entry.status}
-          onChange={async newStatus => { await onStatusChange(entry.id, newStatus); }}
-        />
+        <span onClick={e => e.stopPropagation()}>
+          <StatusPill
+            status={entry.status}
+            onChange={async newStatus => { await onStatusChange(entry.id, newStatus); }}
+          />
+        </span>
 
         <button
-          onClick={() => onDelete(entry.id)}
+          onClick={e => { e.stopPropagation(); onDelete(entry.id); }}
           className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-500 transition-all rounded"
           title="Remove entry"
         >
@@ -187,7 +198,7 @@ export default function EntryRow({ entry, sourceLabel, onStatusChange, onDelete,
                     className="ml-0.5 text-blue-300 hover:text-red-500 dark:text-blue-600 dark:hover:text-red-400 transition-colors leading-none"
                     title={`Remove "${v}"`}
                   >
-                    ?
+                    ×
                   </button>
                 )}
               </span>

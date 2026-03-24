@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api/client';
 import type { CellData, CellEntry, SpecMeta } from '../types/matrix';
 import type { IDSSource } from '../types/sources';
@@ -20,6 +20,16 @@ interface Props {
 // Height of the scrollable content area in rem — keep in sync with MatrixTab paddingBottom
 export const CELL_PANEL_CONTENT_HEIGHT = '22rem';
 
+const STATUS_OPTIONS = ['required', 'optional', 'excluded', 'prohibited'] as const;
+type Status = typeof STATUS_OPTIONS[number];
+
+const STATUS_STYLES: Record<Status, string> = {
+  required:   'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300',
+  optional:   'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300',
+  excluded:   'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400',
+  prohibited: 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300',
+};
+
 export default function CellEditPanel({
   projectId, disciplineId, phaseId, disciplineName, phaseName,
   sources, onClose, onChanged, refreshToken,
@@ -27,6 +37,8 @@ export default function CellEditPanel({
   const [cellData, setCellData] = useState<CellData | null>(null);
   const [loading, setLoading] = useState(true);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   async function loadCell(silent = false) {
@@ -51,19 +63,37 @@ export default function CellEditPanel({
     if (refreshToken && refreshToken > 0) loadCell(true);
   }, [refreshToken]);
 
+  // Clear selection when cell changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setLastSelectedId(null);
+  }, [disciplineId, phaseId]);
+
   async function handleHeaderSave(header: any) {
     await api.matrix.updateHeader(projectId, disciplineId, phaseId, header);
     await loadCell();
   }
 
   async function handleStatusChange(eid: number, status: string) {
-    await api.matrix.updateStatus(projectId, eid, status);
+    // If the clicked entry is selected → apply to all selected; otherwise just this one
+    const targets = selectedIds.has(eid) && selectedIds.size > 1
+      ? [...selectedIds]
+      : [eid];
+    await Promise.all(targets.map(id => api.matrix.updateStatus(projectId, id, status)));
+    await loadCell(true);
+    onChanged();
+  }
+
+  async function handleBulkStatus(status: string) {
+    if (selectedIds.size === 0) return;
+    await Promise.all([...selectedIds].map(id => api.matrix.updateStatus(projectId, id, status)));
     await loadCell(true);
     onChanged();
   }
 
   async function handleDeleteEntry(eid: number) {
     await api.matrix.deleteEntry(projectId, eid);
+    setSelectedIds(prev => { const next = new Set(prev); next.delete(eid); return next; });
     await loadCell(true);
     onChanged();
   }
@@ -84,6 +114,36 @@ export default function CellEditPanel({
     await loadCell(true);
   }
 
+  // Flat ordered list of all entry IDs (for shift-range selection)
+  const allEntryIds: number[] = cellData?.entries.map(e => e.id) ?? [];
+
+  const handleSelectEntry = useCallback((eid: number, e: React.MouseEvent) => {
+    if (e.shiftKey && lastSelectedId !== null) {
+      // Range select between lastSelectedId and eid
+      const fromIdx = allEntryIds.indexOf(lastSelectedId);
+      const toIdx = allEntryIds.indexOf(eid);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const [lo, hi] = fromIdx < toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx];
+        const rangeIds = allEntryIds.slice(lo, hi + 1);
+        setSelectedIds(prev => new Set([...prev, ...rangeIds]));
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(eid)) next.delete(eid); else next.add(eid);
+        return next;
+      });
+      setLastSelectedId(eid);
+    } else {
+      // Plain click: toggle single (keep selection if already the only one)
+      setSelectedIds(prev => {
+        if (prev.size === 1 && prev.has(eid)) return new Set();
+        return new Set([eid]);
+      });
+      setLastSelectedId(eid);
+    }
+  }, [allEntryIds, lastSelectedId]);
+
   function groupBySpec(entries: CellEntry[]): Array<{ specName: string; entries: CellEntry[] }> {
     const map = new Map<string, CellEntry[]>();
     for (const entry of entries) {
@@ -94,6 +154,7 @@ export default function CellEditPanel({
   }
 
   const specGroups = cellData ? groupBySpec(cellData.entries) : [];
+  const selCount = selectedIds.size;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-2xl">
@@ -158,32 +219,62 @@ export default function CellEditPanel({
         )}
 
         {/* Entries — takes remaining width, scrolls independently */}
-        <div ref={scrollRef} className="flex-1 min-w-0 overflow-y-auto p-4 space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600" />
+        <div className="flex-1 min-w-0 flex flex-col">
+
+          {/* ── Bulk action bar (visible when ≥1 selected) ── */}
+          {selCount > 0 && (
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800 flex-shrink-0">
+              <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mr-1">
+                {selCount} selected:
+              </span>
+              {STATUS_OPTIONS.map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleBulkStatus(s)}
+                  className={`text-xs px-2 py-0.5 rounded font-medium transition-colors ${STATUS_STYLES[s]}`}
+                >
+                  {s}
+                </button>
+              ))}
+              <button
+                onClick={() => { setSelectedIds(new Set()); setLastSelectedId(null); }}
+                className="ml-auto text-xs text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300"
+              >
+                clear
+              </button>
             </div>
-          ) : specGroups.length === 0 ? (
-            <div className="flex items-center justify-center h-full border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <p className="text-sm text-gray-400 dark:text-gray-500 text-center px-4">
-                Drag specifications or requirements from the IDS Browser into this cell to add them.
-              </p>
-            </div>
-          ) : (
-            specGroups.map(g => (
-              <SpecGroupPanel
-                key={g.specName}
-                specName={g.specName}
-                entries={g.entries}
-                sources={sources}
-                onStatusChange={handleStatusChange}
-                onDeleteEntry={handleDeleteEntry}
-                onDeleteAllInSpec={handleDeleteAllInSpec}
-                onUpdateValues={handleUpdateValues}
-                onUpdateSpecMeta={handleUpdateSpecMeta}
-              />
-            ))
           )}
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600" />
+              </div>
+            ) : specGroups.length === 0 ? (
+              <div className="flex items-center justify-center h-full border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center px-4">
+                  Drag specifications or requirements from the IDS Browser into this cell to add them.
+                </p>
+              </div>
+            ) : (
+              specGroups.map(g => (
+                <SpecGroupPanel
+                  key={g.specName}
+                  specName={g.specName}
+                  entries={g.entries}
+                  sources={sources}
+                  selectedIds={selectedIds}
+                  lastSelectedId={lastSelectedId}
+                  onSelectEntry={handleSelectEntry}
+                  onStatusChange={handleStatusChange}
+                  onDeleteEntry={handleDeleteEntry}
+                  onDeleteAllInSpec={handleDeleteAllInSpec}
+                  onUpdateValues={handleUpdateValues}
+                  onUpdateSpecMeta={handleUpdateSpecMeta}
+                />
+              ))
+            )}
+          </div>
         </div>
 
       </div>

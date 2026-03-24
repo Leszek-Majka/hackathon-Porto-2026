@@ -8,6 +8,9 @@ interface Props {
   specName: string;
   entries: CellEntry[];
   sources: IDSSource[];
+  selectedIds: Set<number>;
+  lastSelectedId: number | null;
+  onSelectEntry: (eid: number, e: React.MouseEvent) => void;
   onStatusChange: (eid: number, status: string) => Promise<void>;
   onDeleteEntry: (eid: number) => Promise<void>;
   onDeleteAllInSpec: (specName: string, groupKeys: string[]) => Promise<void>;
@@ -32,7 +35,8 @@ function mergeApplicabilities(entries: CellEntry[]): Record<string, any>[] {
 }
 
 export default function SpecGroupPanel({
-  specName, entries, sources, onStatusChange, onDeleteEntry, onDeleteAllInSpec, onUpdateValues, onUpdateSpecMeta,
+  specName, entries, sources, selectedIds, lastSelectedId, onSelectEntry,
+  onStatusChange, onDeleteEntry, onDeleteAllInSpec, onUpdateValues, onUpdateSpecMeta,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [metaOpen, setMetaOpen] = useState(false);
@@ -228,6 +232,8 @@ export default function SpecGroupPanel({
                 key={entry.id}
                 entry={entry}
                 sourceLabel={label}
+                isSelected={selectedIds.has(entry.id)}
+                onSelect={onSelectEntry}
                 onStatusChange={onStatusChange}
                 onDelete={onDeleteEntry}
                 onUpdateValues={onUpdateValues}
