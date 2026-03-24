@@ -83,6 +83,66 @@ Validation is driven by the curated matrix, not directly by raw imported IDS fil
 
 After curation, the application can export IDS outputs generated from the matrix content. This enables project-specific IDS deliverables rather than simply reusing the original imported files.
 
+## AI Workflow
+
+The project also defines a planned AI-assisted IDS generation workflow developed on the `Prompt-of-AI-Driven-IDS-Creation` branch.
+
+This workflow extends the application from managing imported IDS files to generating structured IDS content from unstructured project documents such as BIM protocols, LOIN documents, reports, spreadsheets, and scanned files.
+
+### Step 0. Document To English CSV
+
+The first AI stage ingests one or more source documents, extracts their content, translates it to English when needed, and normalizes the result into a single CSV dataset.
+
+This stage is designed to:
+- read mixed document formats such as PDF, DOCX, XLSX, images, and text,
+- preserve section structure and document traceability,
+- flatten tables and matrix-like content into rows,
+- tag non-IFC content such as process, legal, and deliverable clauses for later filtering.
+
+### Step 1a. CSV To Specification Outline
+
+The second stage scans the reviewed CSV and identifies IFC-mappable requirement groups.
+
+It is responsible for:
+- detecting relevant building element requirements,
+- filtering out non-IFC content,
+- resolving target IFC entity types through an IFC Entity RAG layer,
+- expanding abstract phrases like "all objects" into concrete entity-specific specifications,
+- producing a structured specification-outline JSON.
+
+### Step 1b. Specification Filling
+
+The third stage enriches each specification with detailed IFC semantics.
+
+It uses IFC Property RAG and bSDD lookup to:
+- resolve property sets, property names, and data types,
+- attach canonical URIs where available,
+- distinguish between IFC properties, attributes, classifications, and materials,
+- preserve source context and instructions,
+- generate a fully structured requirement JSON ready for IDS export.
+
+### Step 2. Structured JSON To IDS XML
+
+The final stage performs deterministic conversion from structured requirement JSON into IDS 1.0 XML.
+
+This stage:
+- maps structured requirements to IDS facets,
+- preserves cardinality, values, and constraints,
+- carries through human-readable instructions,
+- prevents invalid abstract entity outputs such as `IFCBUILDINGELEMENT`.
+
+### AI Execution Model
+
+The intended orchestration model for this workflow is a LangGraph-based execution pipeline with human review checkpoints between stages.
+
+In practice, the target flow is:
+1. unstructured documents to normalized CSV,
+2. reviewed CSV to specification outline JSON,
+3. specification outline to fully resolved requirement JSON,
+4. structured JSON to IDS XML.
+
+This design keeps the process traceable, reviewable, and suitable for professional BIM information requirement authoring.
+
 ## Main Capabilities
 
 - Project-based workspace with separate disciplines and phases per project
@@ -93,6 +153,7 @@ After curation, the application can export IDS outputs generated from the matrix
 - IFC upload and validation workflow
 - BCF export from validation results
 - IDS export based on curated matrix content
+- Planned AI-assisted IDS generation workflow from source documents
 - bSDD links for requirements that include IDS URIs
 - Lightweight UI guidance such as requirement type tooltips
 
